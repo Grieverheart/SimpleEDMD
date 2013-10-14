@@ -1,5 +1,20 @@
 #include "include/EventManager.h"
 
+EventRef EventManager::getEventRef(void){
+    if(available_.empty()) return nEvents_++;
+
+    auto first       = available_.begin();
+    EventRef ret_val = *first;
+
+    available_.erase(first);
+
+    return ret_val;
+}
+
+void EventManager::releaseEventRef(EventRef eRef){
+    if(eRef < nEvents_) available_.insert(eRef);
+}
+
 void EventManager::cbtUpdate(EventRef eRef){
     size_t father;
     for(father = leafs_[eRef] / 2; father > 0; father /= 2){
@@ -28,32 +43,32 @@ void EventManager::cbtUpdate(EventRef eRef){
 }
 
 void EventManager::cbtInsert(EventRef eRef){
-    if(nEvents_ == 0){
+    if(nCBTEvents_ == 0){
         nodes_[1] = eRef;
-        ++nEvents_;
+        ++nCBTEvents_;
         return;
     }
 
-    eRef lastNode            = nodes_[nEvents_];
-    nodes_[2 * nEvents_]     = lastNode;
-    nodes_[2 * nEvents_ + 1] = eRef;
+    eRef lastNode               = nodes_[nCBTEvents_];
+    nodes_[2 * nCBTEvents_]     = lastNode;
+    nodes_[2 * nCBTEvents_ + 1] = eRef;
 
-    leafs_[lastNode] = 2 * nEvents_;
-    leafs_[eRef]     = 2 * nEvents_ + 1;
+    leafs_[lastNode] = 2 * nCBTEvents_;
+    leafs_[eRef]     = 2 * nCBTEvents_ + 1;
 
-    ++nEvents_;
+    ++nCBTEvents_;
     cbtUpdate(lastNode);
 }
 
 void EventManager::cbtDelete(EventRef eRef){
-    if(nEvents_ < 2){
+    if(nCBTEvents_ < 2){
         nodes_[1] = 0;
         leafs_[0] = 1;
-        --nEvents_;
+        --nCBTEvents_;
         return;
     }
 
-    size_t lastLeaf = 2 * nEvents_ - 1;
+    size_t lastLeaf = 2 * nCBTEvents_ - 1;
     if(nodes_[lastLeaf - 1] != eRef){
         leafs_[nodes_[lastLeaf - 1]] = l / 2;
         nodes_[lastLeaf / 2] = nodes_[lastLeaf - 1];
@@ -63,7 +78,7 @@ void EventManager::cbtDelete(EventRef eRef){
         leafs_[nodes_[lastLeaf]] = lastLeaf / 2;
         nodes_[lastLeaf / 2] = nodes_[lastLeaf];
         cbtUpdate(nodes_[lastLeaf]);
-        --nEvents_;
+        --nCBTEvents_;
         return;
     }
 
@@ -73,6 +88,6 @@ void EventManager::cbtDelete(EventRef eRef){
         cbtUpdate(nodes_[lastLeaf]);
     }
 
-    --nEvents_;
+    --nCBTEvents_;
 }
 

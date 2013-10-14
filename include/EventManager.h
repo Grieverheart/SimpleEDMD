@@ -2,6 +2,7 @@
 #define __EVENT_MANAGER_H
 
 #include "Event.h"
+#include <set>
 
 typedef int EventRef;
 
@@ -15,20 +16,22 @@ public:
 
     void resize(size_t newSize);
 
-    EventRef queueEvent(Event* event);
-    Event*   getNextEvent(void);
-    void     deleteEvent(EventRef ref);
-    void     clear(void);
+    EventRef     queueEvent(Event* event);
+    const Event* getNextEvent(void);
+    void         deleteEvent(EventRef ref);
+    void         clear(void);
 //private Functions
 private:
     void cbtUpdate(EventRef eRef);
     void cbtDelete(EventRef eRef);
     void cbtInsert(EventRef eRef);
+
+    EventRef getEventRef(void);
+    void     releaseEventRef(void);
 //Members
 private:
-    //Consider implementing these as fixed size and picking an id from an id_manager
     //NEW: Even better, use the id_manager, and when no id is available push_back
-    std::vector<Event>     events_;
+    std::vector<Event*>    events_;
     std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.
 
     size_t size_; //The number of events to hold. Should be at least equal to the number of particles.
@@ -46,7 +49,11 @@ private:
     std::vector<EventRef> nodes_;
     std::vector<size_t>   leafs_;
 
-    int nEvents_; //Current number of events in binary tree
+    int nCBTEvents_; //Current number of events in binary tree
+
+    //ID manager vars
+    int nEvents_; //Current number of total events
+    std::set<EventRef> available_;
 };
 
 #endif
