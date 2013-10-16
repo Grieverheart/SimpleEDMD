@@ -32,12 +32,12 @@ private:
 private:
     //NEW: Even better, use the id_manager, and when no id is available push_back
     std::vector<Event*>    events_;
-    std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.
 
     size_t size_; //The number of events to hold. Should be at least equal to the number of particles.
 
     //Priority queue vars
-    std::vector<EventRef>  llQueue_;    //The array of linked-lists
+    std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.
+    std::vector<EventRef>  llQueue_;    //The array of linked-lists. Holds the index of the first element each linked list.
 
     int    currentIndex_;
     int    baseIndex_;
@@ -51,8 +51,8 @@ private:
 
     int nCBTEvents_; //Current number of events in binary tree
 
-    //ID manager vars
-    int nEvents_; //Current number of total events
+    //EventRef manager vars
+    int eRefCount_; //Current number of total events
     std::set<EventRef> available_;
 };
 

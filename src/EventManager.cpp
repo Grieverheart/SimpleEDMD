@@ -1,7 +1,7 @@
 #include "include/EventManager.h"
 
 EventRef EventManager::getEventRef(void){
-    if(available_.empty()) return nEvents_++;
+    if(available_.empty()) return eRefCount_++;
 
     auto first       = available_.begin();
     EventRef ret_val = *first;
@@ -12,7 +12,7 @@ EventRef EventManager::getEventRef(void){
 }
 
 void EventManager::releaseEventRef(EventRef eRef){
-    if(eRef < nEvents_) available_.insert(eRef);
+    if(eRef < eRefCount_) available_.insert(eRef);
 }
 
 void EventManager::cbtUpdate(EventRef eRef){
