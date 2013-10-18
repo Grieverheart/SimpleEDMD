@@ -1,14 +1,150 @@
 #include "include/EventManager.h"
+#define EMPTY -1
 
-EventRef EventManager::getEventRef(void){
-    if(available_.empty()) return eRefCount_++;
+struct EventItem{
+    EventRef previous_;
+    EventRef next_;
+    size_t   qIndex_;
+};
 
-    auto first       = available_.begin();
-    EventRef ret_val = *first;
+EventManager::EventManager(double scaleFactor, int llSize):
+    currentIndex_(0), baseIndex_(0),
+    llSize_(llSize), scaleFactor_(scaleFactor),
+    nCBTEvents_(0),
+    eRefCount_(0)
+{
+    llQueue_.resize(llSize_ + 1);
+    ////Fiddle with numbers
+    //events_.reserve(1000);
+    //eventItems_.reserve(1000);
+    //leafs_.reserve(1000);
+    //nodes_.reserve(1001);
+}
 
-    available_.erase(first);
+EventManager::~EventManager(void){
+    for(auto event: events_){
+        delete event;
+    }
+    currentIndex_ = 0;
+    baseIndex_    = 0;
+    nCBTEvents_   = 0;
+    eRefCount_    = 0;
 
-    return ret_val;
+    available_.clear();
+}
+
+void EventManager::clear(void){
+    for(auto event: events_){
+        delete event;
+    }
+}
+
+EventRef EventManager::queueEvent(Event* event){
+    EventRef  eRef;
+    EventItem eItem;
+    if(available_.empty()){
+        eRef = eRefCount_++;
+
+        events_.push_back(event);
+        eventItems_.push_back(eItem);
+        //Resize binary tree like this
+        size_t nEvents = events_.size();
+        leafs_.resize(nEvents);
+        nodes_.resize(nEvents + 1);
+    }
+    else{
+        auto first = available_.begin();
+        eRef       = *first;
+        available_.erase(first);
+        //We need to delete the previous event now, because when returning
+        //the next event even if we were to return a copy and destroy the local
+        //one, the Event's destructor would delete the data member
+        delete events_[eRef];
+        events_[eRef] = event;
+    }
+
+    insertInEventQ(eRef);
+
+    return eRef;
+}
+
+void EventManager::insertInEventQ(EventRef eRef){
+    size_t index = (size_t)(scaleFactor_ * events_[eRef]->time_ - baseIndex_); 
+    if(index > llSize_ - 1){
+        index -= llSize_;
+        if(index >= currentIndex_ - 1) index = llSize_;
+    }
+
+    EventItem& eItem = eventItems_[eRef];
+
+    eItem.qIndex_ = index;
+
+    if(index == currentIndex_) cbtInsert(eRef); //Insert in binary tree
+    else{                                       //Insert in linked-list
+        EventRef oldFirst = llQueue_[index];
+
+        eItem.previous_ = EMPTY;
+        eItem.next_     = oldFirst;
+        llQueue_[index] = eRef;
+
+        if(oldFirst != EMPTY){
+            eventItems_[oldFirst].previous_ = eRef;
+        }
+    }
+}
+
+void EventManager::processOverflowList(void){
+    size_t index    = llSize_;
+    EventRef eRef   = llQueue_[index];
+    llQueue_[index] = EMPTY;
+
+    while(eRef != EMPTY){
+        EventRef next = eventItems_[eRef].next_;
+        insertInEventQ(eRef);
+        eRef = next;
+    }
+}
+
+void EventManager::deleteEvent(EventRef eRef){
+    EventItem& eItem = eventItems_[eRef];
+    size_t index     = eItem.qIndex_;
+    if(index == currentIndex_) cbtDelete(eRef);
+    else{
+        EventRef previous = eItem.previous_;
+        EventRef next     = eItem.next_;
+        if(previous == EMPTY) llQueue_[index] = next;
+        else eventItems_[previous].next_ = next;
+
+        if(next != EMPTY) eventItems_[next].previous_ = previous;
+    }
+    releaseEventRef(eRef);
+}
+
+const Event* EventManager::getNextEvent(void){
+    EventRef eRef;
+    while(nCBTEvents_ == 0){
+        ++currentIndex_;
+        if(currentIndex_ == llSize_){
+            currentIndex_  = 0;
+            baseIndex_    += llSize_;
+            processOverflowList();
+        }
+
+        //populate binary tree
+
+        eRef = llQueue_[currentIndex_];
+        while(eRef != EMPTY){
+            cbtInsert(eRef);
+            eRef = eventItems_[eRef].next_;
+        }
+        llQueue_[currentIndex_] = EMPTY;
+    }
+
+    eRef = nodes_[1]; //The root contains the earliest event
+    cbtDelete(eRef);
+    releaseEventRef(eRef);
+
+    return events_[eRef];
 }
 
 void EventManager::releaseEventRef(EventRef eRef){
@@ -22,7 +158,7 @@ void EventManager::cbtUpdate(EventRef eRef){
 
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
-        if(events_[leftNode].time < events_[rightNode].rime){
+        if(events_[leftNode]->time_ < events_[rightNode]->time_){
             nodes_[father] = leftNode;
         }
         else nodes_[father] = rightNode;
@@ -33,7 +169,7 @@ void EventManager::cbtUpdate(EventRef eRef){
 
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
-        if(events_[leftNode].time < events_[rightNode].time){
+        if(events_[leftNode]->time_ < events_[rightNode]->time_){
             nodes_[father] = leftNode;
         }
         else nodes_[father] = rightNode;
@@ -49,7 +185,7 @@ void EventManager::cbtInsert(EventRef eRef){
         return;
     }
 
-    eRef lastNode               = nodes_[nCBTEvents_];
+    EventRef lastNode           = nodes_[nCBTEvents_];
     nodes_[2 * nCBTEvents_]     = lastNode;
     nodes_[2 * nCBTEvents_ + 1] = eRef;
 
@@ -70,7 +206,7 @@ void EventManager::cbtDelete(EventRef eRef){
 
     size_t lastLeaf = 2 * nCBTEvents_ - 1;
     if(nodes_[lastLeaf - 1] != eRef){
-        leafs_[nodes_[lastLeaf - 1]] = l / 2;
+        leafs_[nodes_[lastLeaf - 1]] = lastLeaf / 2;
         nodes_[lastLeaf / 2] = nodes_[lastLeaf - 1];
         cbtUpdate(nodes_[lastLeaf - 1]);
     }

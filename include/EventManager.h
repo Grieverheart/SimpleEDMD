@@ -3,6 +3,8 @@
 
 #include "Event.h"
 #include <set>
+#include <vector>
+#include <cstddef>
 
 typedef int EventRef;
 
@@ -11,10 +13,8 @@ struct EventItem;
 //Consider collecting statistics to improve estimates of scaleFactor and llSize after clears
 class EventManager{
 public:
-    explicit EventManager(size_t nMaxEvents, double scaleFactor, int llSize); //Consider making these template parameters
+    explicit EventManager(double scaleFactor, int llSize); //Consider making these template parameters
     ~EventManager(void);
-
-    void resize(size_t newSize);
 
     EventRef     queueEvent(Event* event);
     const Event* getNextEvent(void);
@@ -26,23 +26,22 @@ private:
     void cbtDelete(EventRef eRef);
     void cbtInsert(EventRef eRef);
 
-    EventRef getEventRef(void);
-    void     releaseEventRef(void);
+    void insertInEventQ(EventRef eRef);
+    void processOverflowList(void);
+    void releaseEventRef(EventRef eRef);
 //Members
 private:
     //NEW: Even better, use the id_manager, and when no id is available push_back
     std::vector<Event*>    events_;
 
-    size_t size_; //The number of events to hold. Should be at least equal to the number of particles.
-
     //Priority queue vars
     std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.
     std::vector<EventRef>  llQueue_;    //The array of linked-lists. Holds the index of the first element each linked list.
 
-    int    currentIndex_;
-    int    baseIndex_;
+    size_t currentIndex_;
+    size_t baseIndex_;
 
-    int    llSize_;
+    size_t llSize_;
     double scaleFactor_;
 
     //Complete binary tree vars
