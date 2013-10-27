@@ -4,13 +4,13 @@
 template<typename T>
 struct Vec3{
     Vec3(T xx, T yy, T zz):
-        x(xz), y(yy), z(zz)
+        x(xx), y(yy), z(zz)
     {}
 
-    T& operator(size_t i){
+    T& operator[](size_t i){
         return (&x)[i];
     }
-    const T& operator(size_t i){
+    const T& operator[](size_t i)const{
         return (&x)[i];
     }
 

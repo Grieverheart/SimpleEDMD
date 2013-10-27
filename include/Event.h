@@ -15,7 +15,7 @@ struct Event{
         type_(type), time_(time), data_(data)
     {}
     ~Event(void){
-        delete data_;
+        if(data_) delete data_;
     }
         
     const EventType  type_;

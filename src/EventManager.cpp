@@ -1,4 +1,5 @@
 #include "include/EventManager.h"
+#include <cstdio>
 #define EMPTY -1
 
 struct EventItem{
@@ -13,7 +14,7 @@ EventManager::EventManager(double scaleFactor, int llSize):
     nCBTEvents_(0),
     eRefCount_(0)
 {
-    llQueue_.resize(llSize_ + 1);
+    llQueue_.resize(llSize_ + 1, EMPTY);
     ////Fiddle with numbers
     //events_.reserve(1000);
     //eventItems_.reserve(1000);
@@ -49,8 +50,8 @@ EventRef EventManager::queueEvent(Event* event){
         eventItems_.push_back(eItem);
         //Resize binary tree like this
         size_t nEvents = events_.size();
-        leafs_.resize(nEvents);
-        nodes_.resize(nEvents + 1);
+        leafs_.resize(nEvents + 1);
+        nodes_.resize(2 * nEvents);
     }
     else{
         auto first = available_.begin();
@@ -70,6 +71,7 @@ EventRef EventManager::queueEvent(Event* event){
 
 void EventManager::insertInEventQ(EventRef eRef){
     size_t index = (size_t)(scaleFactor_ * events_[eRef]->time_ - baseIndex_); 
+
     if(index > llSize_ - 1){
         index -= llSize_;
         if(index >= currentIndex_ - 1) index = llSize_;
@@ -121,7 +123,6 @@ void EventManager::deleteEvent(EventRef eRef){
 }
 
 const Event* EventManager::getNextEvent(void){
-    EventRef eRef;
     while(nCBTEvents_ == 0){
         ++currentIndex_;
         if(currentIndex_ == llSize_){
@@ -131,16 +132,13 @@ const Event* EventManager::getNextEvent(void){
         }
 
         //populate binary tree
-
-        eRef = llQueue_[currentIndex_];
-        while(eRef != EMPTY){
+        for(EventRef eRef = llQueue_[currentIndex_]; eRef != EMPTY; eRef = eventItems_[eRef].next_)
             cbtInsert(eRef);
-            eRef = eventItems_[eRef].next_;
-        }
+
         llQueue_[currentIndex_] = EMPTY;
     }
 
-    eRef = nodes_[1]; //The root contains the earliest event
+    EventRef eRef = nodes_[1]; //The root contains the earliest event
     cbtDelete(eRef);
     releaseEventRef(eRef);
 
@@ -153,15 +151,11 @@ void EventManager::releaseEventRef(EventRef eRef){
 
 void EventManager::cbtUpdate(EventRef eRef){
     size_t father;
-    for(father = leafs_[eRef] / 2; father > 0; father /= 2){
-        if(nodes_[father] != eRef) break;
-
+    for(father = leafs_[eRef] / 2; (nodes_[father] == eRef) && (father > 0); father /= 2){
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
-        if(events_[leftNode]->time_ < events_[rightNode]->time_){
-            nodes_[father] = leftNode;
-        }
-        else nodes_[father] = rightNode;
+
+        nodes_[father] = (events_[leftNode]->time_ < events_[rightNode]->time_)? leftNode : rightNode;
     }
 
     for( ; father > 0; father /= 2){
@@ -169,10 +163,8 @@ void EventManager::cbtUpdate(EventRef eRef){
 
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
-        if(events_[leftNode]->time_ < events_[rightNode]->time_){
-            nodes_[father] = leftNode;
-        }
-        else nodes_[father] = rightNode;
+
+        nodes_[father] = (events_[leftNode]->time_ < events_[rightNode]->time_)? leftNode : rightNode;
 
         if(nodes_[father] == oldWinner) return;
     }
@@ -205,18 +197,17 @@ void EventManager::cbtDelete(EventRef eRef){
     }
 
     size_t lastLeaf = 2 * nCBTEvents_ - 1;
-    if(nodes_[lastLeaf - 1] != eRef){
-        leafs_[nodes_[lastLeaf - 1]] = lastLeaf / 2;
-        nodes_[lastLeaf / 2] = nodes_[lastLeaf - 1];
-        cbtUpdate(nodes_[lastLeaf - 1]);
-    }
-    else{
+    if(nodes_[lastLeaf - 1] == eRef){
         leafs_[nodes_[lastLeaf]] = lastLeaf / 2;
         nodes_[lastLeaf / 2] = nodes_[lastLeaf];
         cbtUpdate(nodes_[lastLeaf]);
         --nCBTEvents_;
         return;
     }
+
+    leafs_[nodes_[lastLeaf - 1]] = lastLeaf / 2;
+    nodes_[lastLeaf / 2] = nodes_[lastLeaf - 1];
+    cbtUpdate(nodes_[lastLeaf - 1]);
 
     if(nodes_[lastLeaf] != eRef){
         nodes_[leafs_[eRef]] = nodes_[lastLeaf];
