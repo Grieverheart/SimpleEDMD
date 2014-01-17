@@ -74,7 +74,7 @@ void EventManager::insertInEventQ(EventRef eRef){
 
     if(index > llSize_ - 1){
         index -= llSize_;
-        if(index >= currentIndex_ - 1) index = llSize_;
+        if(index + 1 >= currentIndex_) index = llSize_;
     }
 
     EventItem& eItem = eventItems_[eRef];
