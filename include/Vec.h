@@ -7,6 +7,10 @@ struct Vec3{
         x(xx), y(yy), z(zz)
     {}
 
+    Vec3(T a):
+        x(a), y(a), z(a)
+    {}
+
     T& operator[](size_t i){
         return (&x)[i];
     }

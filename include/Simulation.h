@@ -1,6 +1,7 @@
 #ifndef __SIMULATION_H
 #define __SIMULATION_H
 
+#include <vector>
 #include "Vec.h"
 
 //Start by creating a simple simulation class so we can start testing.
@@ -12,10 +13,12 @@ class Simulation{
 public:
     void run(void);
     void addSphere(Vec3d position, double radius);
+    void readConfig(const char* filename);
 private:
-    int nSpheres;
-    std::vector<double> radii;
-    std::vector<Vec3d>  positions;
+    int nSpheres_;
+    double boxSize_;
+    std::vector<double> radii_;
+    std::vector<Vec3d>  positions_;
 };
 
 #endif
