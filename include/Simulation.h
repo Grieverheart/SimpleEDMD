@@ -11,6 +11,7 @@
 
 class Simulation{
 public:
+    Simulation(void){};
     void run(void);
     void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);

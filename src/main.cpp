@@ -1,10 +1,10 @@
 #include <iostream>
 #include "include/Time.h"
 #include "include/EventManager.h"
+#include "include/Simulation.h"
 
-
-int main(int argc, char *argv[]){
-
+//Test the event Manager
+void test1(void){
     EventManager manager(10.0, 50);
 
     std::vector<EventRef> refs;
@@ -17,6 +17,13 @@ int main(int argc, char *argv[]){
         const Event* event = manager.getNextEvent();
         std::cout << event->time_ << std::endl;
     }
+}
+
+int main(int argc, char *argv[]){
+
+    Simulation sim;
+
+    sim.readConfig(argv[1]);
 
     return 0;
 }

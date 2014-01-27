@@ -25,6 +25,7 @@ void Simulation::readConfig(const char* filename){
             Vec3d coords(0.0);
             for(t1 = strtok(line,delim); t1 != NULL; t1 = strtok(NULL, delim)){
                 if(u<3)	coords[u] = atof(t1);
+                else radii_.push_back(atof(t1));
                 u++;
             }
             positions_.push_back(coords);
@@ -34,3 +35,13 @@ void Simulation::readConfig(const char* filename){
 	free(t1);
 	fclose(fp);
 }
+
+void Simulation::addSphere(Vec3d pos, double radius){
+    positions_.push_back(pos);
+    radii_.push_back(radius);
+    ++nSpheres_;
+}
+
+void Simulation::run(void){
+}
+
