@@ -1,5 +1,4 @@
 *.swp
-*.dat
 *.o
 Data/
 main
