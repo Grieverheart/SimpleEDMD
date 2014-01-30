@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdlib>
 #include "include/Simulation.h"
+#include "include/EventManager.h"
 
 void Simulation::readConfig(const char* filename){
 	char line[128];
@@ -43,5 +44,25 @@ void Simulation::addSphere(Vec3d pos, double radius){
 }
 
 void Simulation::run(void){
+    //EventRef impendingEvents[nSpheres_];
+
+    /* Pseudocode for 'run' function */
+    //Initialize paricle velocities
+    //Calculate collision events for the first time
+    //
+    //--Start main loop
+    //const Event* nextEvent = eventManager_.getNextEvent();
+    //if(nextEvent.type_ == EVT_COLLISION){
+    //    Change participating particles' velocity, time and position
+    //    Recalculate collisions
+    //}
+    //else if(nextEvent.type_ == EVT_OUTPUT){
+    //    progress all particles to current time and output configuration
+    //    schedule next output event
+    //}
+    //else if(nextEvent.type_ == EVT_ENDSIM){
+    //    end simulation
+    //}
+    //--End main loop
 }
 

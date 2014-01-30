@@ -9,6 +9,10 @@
 //and check how performance is affected. If the performance penalty is
 //not too significant, it will beneficial to keep the EC system.
 
+//NOTE: The plan is, for a particle i, to only schedule the next collision
+//and eventually, when the cell list is implemented, the next cell transfer.
+//check 'Algorithms for Particle-Field Simulations with Collisions'
+
 class Simulation{
 public:
     Simulation(void){};

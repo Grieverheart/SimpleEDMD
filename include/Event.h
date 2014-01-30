@@ -17,6 +17,8 @@ struct Event{
     ~Event(void){
         if(data_) delete data_;
     }
+    //Disable copying, event memory will be managed by EventManager
+    Event(const Event& other) = delete;
         
     const EventType  type_;
     const Time       time_;

@@ -108,6 +108,8 @@ void EventManager::processOverflowList(void){
 }
 
 void EventManager::deleteEvent(EventRef eRef){
+    //For safety, we might have to first check if the event occurs
+    //if(available_.find(eRef) != available_.end()) return; //Event does not exist
     EventItem& eItem = eventItems_[eRef];
     size_t index     = eItem.qIndex_;
     if(index == currentIndex_) cbtDelete(eRef);
@@ -122,6 +124,43 @@ void EventManager::deleteEvent(EventRef eRef){
     releaseEventRef(eRef);
 }
 
+//CAUTION: Experimental
+void EventManager::updateEvent(EventRef eRef, Event* event){
+    EventItem& eItem = eventItems_[eRef];
+    size_t index     = eItem.qIndex_;
+
+    delete events_[eRef];
+    events_[eRef] = event;
+
+    if(index == currentIndex_) cbtUpdate(eRef);
+    else{
+        //Delete old event from linked list
+        EventRef previous = eItem.previous_;
+        EventRef next     = eItem.next_;
+        if(previous == EMPTY) llQueue_[index] = next;
+        else eventItems_[previous].next_ = next;
+
+        if(next != EMPTY) eventItems_[next].previous_ = previous;
+
+        //Insert new event in linked list
+        size_t newIndex = (size_t)(scaleFactor_ * events_[eRef]->time_ - baseIndex_); 
+        EventRef oldFirst = llQueue_[newIndex];
+
+        eItem.previous_    = EMPTY;
+        eItem.next_        = oldFirst;
+        eItem.qIndex_      = newIndex;
+        llQueue_[newIndex] = eRef;
+
+        if(oldFirst != EMPTY){
+            eventItems_[oldFirst].previous_ = eRef;
+        }
+    }
+    releaseEventRef(eRef);
+}
+
+//We might have to change this function at some point to return an EventRef instead
+//and add a function const Event& getEvent(EventRef ref); deleting multiple events
+//associated with one particle can then skip the event that just occured
 const Event* EventManager::getNextEvent(void){
     while(nCBTEvents_ == 0){
         ++currentIndex_;

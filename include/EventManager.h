@@ -17,6 +17,7 @@ public:
     ~EventManager(void);
 
     EventRef     queueEvent(Event* event);
+    void         updateEvent(EventRef ref, Event* event);
     const Event* getNextEvent(void);
     void         deleteEvent(EventRef ref);
     void         clear(void);
