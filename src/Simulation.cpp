@@ -44,25 +44,41 @@ void Simulation::addSphere(Vec3d pos, double radius){
 }
 
 void Simulation::run(void){
-    //EventRef impendingEvents[nSpheres_];
+    //EventRef impendingCollisions[nSpheres_];
+    //EventRef impendingTransfers[nSpheres_];
 
     /* Pseudocode for 'run' function */
     //Initialize paricle velocities
-    //Calculate collision events for the first time
-    //
-    //--Start main loop
-    //const Event* nextEvent = eventManager_.getNextEvent();
-    //if(nextEvent.type_ == EVT_COLLISION){
-    //    Change participating particles' velocity, time and position
-    //    Recalculate collisions
-    //}
-    //else if(nextEvent.type_ == EVT_OUTPUT){
-    //    progress all particles to current time and output configuration
-    //    schedule next output event
-    //}
-    //else if(nextEvent.type_ == EVT_ENDSIM){
-    //    end simulation
-    //}
-    //--End main loop
+    
+    for(int i = 0; i < nSpheres_; ++i){
+        for(int j = i + 1; j < nSpheres_; ++j){
+            //get collision info
+            //if collision, then store collision info
+        }
+        //Calculate when particle will move out of box
+        //queue earliest collision event and transfer event
+    }
+
+    bool running = true;
+    while(running){
+        const Event* nextEvent = eventManager_.getNextEvent();
+        switch(nextEvent.type_){
+        case EVT_COLLISION:
+            //Change participating particles' velocity, time and position
+            //Recalculate collision events
+            break;
+        case EVT_TRANSFER:
+            //Apply periodic boundary conditions for the particle and recalculate
+            //collision events
+            break;
+        case EVT_OUTPUT:
+            //progress all particles to current time and output configuration
+            //schedule next output event
+            break;
+        case EVT_ENDSIM:
+            running = false;
+            break;
+        }
+    }
 }
 

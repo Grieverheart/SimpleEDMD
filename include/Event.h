@@ -3,7 +3,13 @@
 
 #include "Time.h"
 
-typedef int EventType; //Will eventually change this to a hashed string
+//Will eventually change this to a hashed string
+enum EventType{
+    EVT_COLLISION,
+    EVT_TRANSFER,
+    EVT_OUTPUT,
+    EVT_ENDSIM
+};
 
 class EventData{
 public:
