@@ -44,8 +44,8 @@ void Simulation::addSphere(Vec3d pos, double radius){
 }
 
 void Simulation::run(void){
-    //EventRef impendingCollisions[nSpheres_];
-    //EventRef impendingTransfers[nSpheres_];
+    EventRef impendingCollisions[nSpheres_];
+    EventRef impendingTransfers[nSpheres_];
 
     /* Pseudocode for 'run' function */
     //Initialize paricle velocities
@@ -62,10 +62,14 @@ void Simulation::run(void){
     bool running = true;
     while(running){
         const Event* nextEvent = eventManager_.getNextEvent();
-        switch(nextEvent.type_){
-        case EVT_COLLISION:
-            //Change participating particles' velocity, time and position
-            //Recalculate collision events
+        switch(nextEvent->getType()){
+        case EVT_COLLISION:{
+                Time time = nextEvent->time_;
+                auto collisionEvent = *static_cast<const CollisionEvent*>(nextEvent);
+                times_[collisionEvent.pA] = times_[collisionEvent.pB] = time;
+                //Change participating particles' velocity, time and position
+                //Recalculate collision events
+            }
             break;
         case EVT_TRANSFER:
             //Apply periodic boundary conditions for the particle and recalculate

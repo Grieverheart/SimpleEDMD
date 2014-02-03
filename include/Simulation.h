@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "Vec.h"
+#include "EventManager.h"
 
 //Start by creating a simple simulation class so we can start testing.
 //After sufficient testing, we can move to the entity-component system
@@ -20,10 +21,16 @@ public:
     void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);
 private:
+    void calcCollision(size_t pA, size_t pB);
+
     int nSpheres_;
     double boxSize_;
     std::vector<double> radii_;
+    std::vector<Time>   times_;
     std::vector<Vec3d>  positions_;
+    std::vector<Vec3d>  velocities_;
+
+    EventManager eventManager_;
 };
 
 #endif

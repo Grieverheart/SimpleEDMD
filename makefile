@@ -3,7 +3,7 @@ OBJ=$(patsubst src/%.cpp, bin/%.o, $(SRC))
 EXE=main
 
 CC=g++
-CFLAGS=-Wall -g -O3 -std=c++0x -I.
+CFLAGS=-Wall -g -O3 -std=c++0x -march=native -I.
 LDFLAGS= -lm
 RM=rm
 

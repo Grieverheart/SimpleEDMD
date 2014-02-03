@@ -2,6 +2,7 @@
 #define __EVENT_H
 
 #include "Time.h"
+#include <cstdio>
 
 //Will eventually change this to a hashed string
 enum EventType{
@@ -11,24 +12,29 @@ enum EventType{
     EVT_ENDSIM
 };
 
-class EventData{
-public:
-    virtual ~EventData(void) = 0;
-};
 
-struct Event{
-    Event(EventType type, Time time, EventData *data = nullptr):
-        type_(type), time_(time), data_(data)
+//NOTE: Consider using boost::variant, it should give better performance
+class Event{
+public:
+    Event(Time time):
+        time_(time)
     {}
-    ~Event(void){
-        if(data_) delete data_;
+    virtual ~Event(void) = 0;
+    virtual EventType getType(void)const = 0;
+
+    Time time_;
+};
+inline Event::~Event(void){}
+
+struct CollisionEvent: public Event{
+    CollisionEvent(Time time, size_t particleA, size_t particleB):
+        Event(time), pA(particleA), pB(particleB)
+    {}
+    EventType getType(void)const{
+        return EVT_COLLISION;
     }
-    //Disable copying, event memory will be managed by EventManager
-    Event(const Event& other) = delete;
-        
-    const EventType  type_;
-    const Time       time_;
-    const EventData *data_;
+
+    size_t pA, pB;
 };
 
 #endif

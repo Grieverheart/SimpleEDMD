@@ -14,6 +14,7 @@ struct EventItem;
 class EventManager{
 public:
     explicit EventManager(double scaleFactor, int llSize); //Consider making these template parameters
+    EventManager(void); //NOTE: temporary  function
     ~EventManager(void);
 
     EventRef     queueEvent(Event* event);

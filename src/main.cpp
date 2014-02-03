@@ -9,7 +9,7 @@ void test1(void){
 
     std::vector<EventRef> refs;
     for(int i = 0; i < 100; ++i){
-        EventRef ref = manager.queueEvent(new Event(EVT_COLLISION, 0.1 * double(i)));
+        EventRef ref = manager.queueEvent(new CollisionEvent(0.1 * double(i), i, i + 1));
         refs.push_back(ref);
     }
 
@@ -24,6 +24,8 @@ int main(int argc, char *argv[]){
     Simulation sim;
 
     sim.readConfig(argv[1]);
+
+    test1();
 
     return 0;
 }
