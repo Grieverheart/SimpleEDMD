@@ -14,6 +14,8 @@
 //and eventually, when the cell list is implemented, the next cell transfer.
 //check 'Algorithms for Particle-Field Simulations with Collisions'
 
+//NOTE: Consider using smart pointers for passing events around
+
 class Simulation{
 public:
     Simulation(void){};
@@ -21,7 +23,8 @@ public:
     void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);
 private:
-    void calcCollision(size_t pA, size_t pB);
+    CollisionEvent* getCollisionEvent(size_t pA, size_t pB);
+    void runCollisionEvent(const CollisionEvent& event);
 
     int nSpheres_;
     double boxSize_;

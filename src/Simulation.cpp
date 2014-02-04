@@ -43,6 +43,22 @@ void Simulation::addSphere(Vec3d pos, double radius){
     ++nSpheres_;
 }
 
+//NOTE: For simplicity, for now we assume equal mass spheres
+void Simulation::runCollisionEvent(const CollisionEvent& event){
+    Time time = event.time_;
+    size_t pA = event.pA;
+    size_t pB = event.pB;
+
+    positions_[pA] += velocities_[pA] * (time - times_[pA]);
+    positions_[pB] += velocities_[pB] * (time - times_[pB]);
+
+    times_[pA] = times_[pB] = time;
+
+    auto temp = velocities_[pA];
+    velocities_[pA] = velocities_[pB];
+    velocities_[pB] = temp;
+}
+
 void Simulation::run(void){
     EventRef impendingCollisions[nSpheres_];
     EventRef impendingTransfers[nSpheres_];
@@ -64,10 +80,8 @@ void Simulation::run(void){
         const Event* nextEvent = eventManager_.getNextEvent();
         switch(nextEvent->getType()){
         case EVT_COLLISION:{
-                Time time = nextEvent->time_;
                 auto collisionEvent = *static_cast<const CollisionEvent*>(nextEvent);
-                times_[collisionEvent.pA] = times_[collisionEvent.pB] = time;
-                //Change participating particles' velocity, time and position
+                runCollisionEvent(collisionEvent);
                 //Recalculate collision events
             }
             break;
@@ -80,6 +94,7 @@ void Simulation::run(void){
             //schedule next output event
             break;
         case EVT_ENDSIM:
+        default:
             running = false;
             break;
         }
