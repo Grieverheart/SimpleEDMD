@@ -16,22 +16,37 @@
 
 //NOTE: Consider using smart pointers for passing events around
 
+//LOG: Next time, we want to implement a rayAABBIntersection function for
+//calculating when a sphere will cross the simulation box.
+
 class Simulation{
 public:
-    Simulation(void){};
+    Simulation(void):
+        nSpheres_(0)
+    {}
+    ~Simulation(void){
+        delete[] impendingCollisions;
+        delete[] impendingTransfers;
+    }
     void run(void);
     void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);
 private:
-    CollisionEvent* getCollisionEvent(size_t pA, size_t pB);
+    bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t)const;
+    CollisionEvent* getCollisionEvent(size_t pA, size_t pB)const;
     void runCollisionEvent(const CollisionEvent& event);
+    Vec3d applyPeriodicBC(const Vec3d& vec)const;
 
-    int nSpheres_;
+    size_t nSpheres_;
     double boxSize_;
     std::vector<double> radii_;
     std::vector<Time>   times_;
     std::vector<Vec3d>  positions_;
     std::vector<Vec3d>  velocities_;
+
+    EventRef* impendingCollisions;
+    EventRef* impendingTransfers;
+
 
     EventManager eventManager_;
 };

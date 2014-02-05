@@ -23,6 +23,10 @@ struct Vec3{
         return Vec3<T>(x + other.x, y + other.y, z + other.z);
     }
 
+    Vec3<T> operator-(Vec3<T> other)const{
+        return Vec3<T>(x - other.x, y - other.y, z - other.z);
+    }
+
     Vec3<T> operator*(const T& scalar)const{
         return Vec3<T>(x * scalar, y * scalar, z * scalar);
     }
@@ -31,8 +35,17 @@ struct Vec3{
         return *this = *this + other;
     }
 
+    Vec3<T>& operator-=(const Vec3<T>& other){
+        return *this = *this - other;
+    }
+
     struct{T x, y, z;};
 };
+
+template<class T>
+T dot(const Vec3<T>& a, const Vec3<T>& b){
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
 
 typedef Vec3<double> Vec3d;
 typedef Vec3<float>  Vec3f;
