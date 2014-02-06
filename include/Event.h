@@ -6,10 +6,7 @@
 
 //Will eventually change this to a hashed string
 enum EventType{
-    EVT_COLLISION,
-    EVT_TRANSFER,
-    EVT_OUTPUT,
-    EVT_ENDSIM
+    EVT_COLLISION
 };
 
 

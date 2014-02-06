@@ -22,13 +22,13 @@
 class Simulation{
 public:
     Simulation(void):
-        nSpheres_(0)
+        nSpheres_(0), time_(0.0)
     {}
     ~Simulation(void){
         delete[] impendingCollisions;
-        delete[] impendingTransfers;
     }
     void run(void);
+    bool init(void);
     void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);
 private:
@@ -39,14 +39,13 @@ private:
 
     size_t nSpheres_;
     double boxSize_;
+    Time   time_;
     std::vector<double> radii_;
     std::vector<Time>   times_;
     std::vector<Vec3d>  positions_;
     std::vector<Vec3d>  velocities_;
 
     EventRef* impendingCollisions;
-    EventRef* impendingTransfers;
-
 
     EventManager eventManager_;
 };

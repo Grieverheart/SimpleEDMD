@@ -37,11 +37,6 @@ void Simulation::readConfig(const char* filename){
 	}
 	free(t1);
 	fclose(fp);
-
-    if(nSpheres_){
-        impendingCollisions = new EventRef[nSpheres_];
-        impendingTransfers  = new EventRef[nSpheres_];
-    }
 }
 
 void Simulation::addSphere(Vec3d pos, double radius){
@@ -108,20 +103,37 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     velocities_[pA] = velocities_[pB];
     velocities_[pB] = temp;
 
+    eventManager_.deleteEvent(impendingCollisions[pA]);
+
     //Recalculate collision events
+    std::vector<CollisionEvent*> eventsA;
+    std::vector<CollisionEvent*> eventsB;
     for(size_t n = 0; n < nSpheres_; ++n){
         if(n != pA && n != pB){
             auto eventA = getCollisionEvent(pA, n);
             auto eventB = getCollisionEvent(pB, n);
-            if(eventA) impendingCollisions[pA] = eventManager_.queueEvent(eventA);
-            if(eventB) impendingCollisions[pB] = eventManager_.queueEvent(eventB);
+            if(eventA) eventsA.push_back(eventA);
+            if(eventB) eventsB.push_back(eventB);
         }
+        auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
+            return (a->time_ < b->time_);
+        };
+        eventManager_.queueEvent(*std::min_element(eventsA.begin(), eventsA.end(), cmp));
+        eventManager_.queueEvent(*std::min_element(eventsB.begin(), eventsB.end(), cmp));
     }
+}
+
+bool Simulation::init(void){
+    if(nSpheres_) impendingCollisions = new EventRef[nSpheres_];
+    else return false;
+    //Initialize paricle velocities
+    return true;
 }
 
 void Simulation::run(void){
     /* Pseudocode for 'run' function */
-    //Initialize paricle velocities
+    
+    Time endTime = 100.0;
     
     for(size_t i = 0; i < nSpheres_; ++i){
         std::vector<CollisionEvent*> events;
@@ -135,28 +147,21 @@ void Simulation::run(void){
             }
         );
         eventManager_.queueEvent(earliestCollision);
-        //Calculate when particle will move out of box
-        //queue earliest collision event and transfer event
     }
 
     bool running = true;
     while(running){
         const Event* nextEvent = eventManager_.getNextEvent();
+        time_ = nextEvent->time_;
+
+        if(time_ >= endTime) break;
+
         switch(nextEvent->getType()){
         case EVT_COLLISION:{
                 auto collisionEvent = *static_cast<const CollisionEvent*>(nextEvent);
                 runCollisionEvent(collisionEvent);
             }
             break;
-        case EVT_TRANSFER:
-            //Apply periodic boundary conditions for the particle and recalculate
-            //collision events
-            break;
-        case EVT_OUTPUT:
-            //progress all particles to current time and output configuration
-            //schedule next output event
-            break;
-        case EVT_ENDSIM:
         default:
             running = false;
             break;
