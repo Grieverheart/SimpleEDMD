@@ -103,7 +103,12 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     velocities_[pA] = velocities_[pB];
     velocities_[pB] = temp;
 
-    eventManager_.deleteEvent(impendingCollisions[pA]);
+    auto assocsA = collisionGraph_->getAssociations(pA);
+    collisionGraph_->clear(pA);
+    for(auto eRef: assocsA) eventManager_.deleteEvent(eRef);
+    auto assocsB = collisionGraph_->getAssociations(pB);
+    collisionGraph_->clear(pB);
+    for(auto eRef: assocsB) eventManager_.deleteEvent(eRef);
 
     //Recalculate collision events
     std::vector<CollisionEvent*> eventsA;
@@ -118,23 +123,36 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
         auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
             return (a->time_ < b->time_);
         };
-        eventManager_.queueEvent(*std::min_element(eventsA.begin(), eventsA.end(), cmp));
-        eventManager_.queueEvent(*std::min_element(eventsB.begin(), eventsB.end(), cmp));
+        auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
+        EventRef refA = eventManager_.queueEvent(minEventA);
+        collisionGraph_->addEdge(minEventA->pA, minEventA->pB, refA);
+        auto minEventB = *std::min_element(eventsB.begin(), eventsB.end(), cmp);
+        EventRef refB = eventManager_.queueEvent(minEventB);
+        collisionGraph_->addEdge(minEventB->pA, minEventB->pB, refB);
     }
 }
 
 bool Simulation::init(void){
-    if(nSpheres_) impendingCollisions = new EventRef[nSpheres_];
+    if(nSpheres_) collisionGraph_ = new Graph(nSpheres_);
     else return false;
-    //Initialize paricle velocities
-    return true;
-}
 
-void Simulation::run(void){
-    /* Pseudocode for 'run' function */
-    
-    Time endTime = 100.0;
-    
+    //Initialize particle times to zero
+    times_.resize(nSpheres_, 0.0);
+
+    //Initialize paricle velocities
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+    for(size_t i = 0; i < nSpheres_; ++i){
+        Vec3d vec(0.0);
+        double sum = 0.0;
+        for(size_t j = 0; j < 3; ++j){
+            vec[j] = dist(mtGen_);
+            sum += vec[j] * vec[j];
+        }
+        vec = vec * (1.0 / sqrt(sum));
+        velocities_.push_back(vec);
+    }
+
+    //Find initial collision events
     for(size_t i = 0; i < nSpheres_; ++i){
         std::vector<CollisionEvent*> events;
         for(size_t j = i + 1; j < nSpheres_; ++j){
@@ -146,9 +164,18 @@ void Simulation::run(void){
                 return (a->time_ < b->time_);
             }
         );
-        eventManager_.queueEvent(earliestCollision);
+        EventRef ref = eventManager_.queueEvent(earliestCollision);
+        collisionGraph_->addEdge(earliestCollision->pA, earliestCollision->pB, ref);
     }
 
+    return true;
+}
+
+void Simulation::run(void){
+    /* Pseudocode for 'run' function */
+    
+    Time endTime = 100.0;
+    
     bool running = true;
     while(running){
         const Event* nextEvent = eventManager_.getNextEvent();

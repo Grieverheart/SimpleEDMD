@@ -2,8 +2,10 @@
 #define __SIMULATION_H
 
 #include <vector>
+#include <random>
 #include "Vec.h"
 #include "EventManager.h"
+#include "Graph.h"
 
 //Start by creating a simple simulation class so we can start testing.
 //After sufficient testing, we can move to the entity-component system
@@ -23,9 +25,11 @@ class Simulation{
 public:
     Simulation(void):
         nSpheres_(0), time_(0.0)
-    {}
+    {
+        mtGen_.seed(0);
+    }
     ~Simulation(void){
-        delete[] impendingCollisions;
+        delete collisionGraph_;
     }
     void run(void);
     bool init(void);
@@ -45,9 +49,11 @@ private:
     std::vector<Vec3d>  positions_;
     std::vector<Vec3d>  velocities_;
 
-    EventRef* impendingCollisions;
+    Graph* collisionGraph_;
 
     EventManager eventManager_;
+
+    std::mt19937 mtGen_;
 };
 
 #endif

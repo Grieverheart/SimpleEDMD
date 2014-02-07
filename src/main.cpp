@@ -25,7 +25,9 @@ int main(int argc, char *argv[]){
 
     sim.readConfig(argv[1]);
 
-    test1();
+    sim.init();
+
+    sim.run();
 
     return 0;
 }
