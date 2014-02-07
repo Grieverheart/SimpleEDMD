@@ -8,9 +8,6 @@ struct EventItem{
     size_t   qIndex_;
 };
 
-EventManager::EventManager(void){
-}
-
 EventManager::EventManager(double scaleFactor, int llSize):
     currentIndex_(0), baseIndex_(0),
     llSize_(llSize), scaleFactor_(scaleFactor),

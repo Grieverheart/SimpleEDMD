@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 #include "include/Simulation.h"
 #include "include/EventManager.h"
 
@@ -48,25 +49,26 @@ void Simulation::addSphere(Vec3d pos, double radius){
 Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
     Vec3d retVec = vec;
     for(size_t i = 0; i < 3; ++i){
-        retVec[i] -= int(vec[i] * (2.0 / boxSize_));
+        retVec[i] -= boxSize_ * int(vec[i] * (2.0 / boxSize_));
     }
     return retVec;
 }
 
+//WARNING: Needs re-evaluation
 bool Simulation::raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t)const{
-    float B   = dot(dir, pos);
-    float det = B * B - dot(pos, pos) + radius * radius;
+    double B   = dot(dir, pos);
+    double det = B * B - dot(dir, dir) * (dot(pos, pos) - radius * radius);
     if(det < 0.0f) return false;
 
-    float t0 = B + sqrt(det);
-    float t1 = B - sqrt(det);
+    double t0 = (B + sqrt(det)) / dot(dir, dir);
+    double t1 = (B - sqrt(det)) / dot(dir, dir);
     bool retValue = false;
-    if((t0 < t) && (t0 > 0.0001)){
+    if(t0 > 0.0){
         t = t0;
         //mIntersection = t * dir; //Intersection point
         retValue = true;
     }
-    if((t1 < t) && (t1 > 0.0001)){
+    if(t1 < t && t1 > 0.0){
         t = t1;
         //mIntersection = t * dir;
         retValue = true;
@@ -123,12 +125,16 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
         auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
             return (a->time_ < b->time_);
         };
-        auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
-        EventRef refA = eventManager_.queueEvent(minEventA);
-        collisionGraph_->addEdge(minEventA->pA, minEventA->pB, refA);
-        auto minEventB = *std::min_element(eventsB.begin(), eventsB.end(), cmp);
-        EventRef refB = eventManager_.queueEvent(minEventB);
-        collisionGraph_->addEdge(minEventB->pA, minEventB->pB, refB);
+        if(!eventsA.empty()){
+            auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
+            EventRef refA = eventManager_.queueEvent(minEventA);
+            collisionGraph_->addEdge(minEventA->pA, minEventA->pB, refA);
+        }
+        if(!eventsB.empty()){
+            auto minEventB = *std::min_element(eventsB.begin(), eventsB.end(), cmp);
+            EventRef refB = eventManager_.queueEvent(minEventB);
+            collisionGraph_->addEdge(minEventB->pA, minEventB->pB, refB);
+        }
     }
 }
 
@@ -159,27 +165,29 @@ bool Simulation::init(void){
             auto event = getCollisionEvent(i, j);
             if(event) events.push_back(event);
         }
-        CollisionEvent* earliestCollision = *std::min_element(events.begin(), events.end(),
-            [](const CollisionEvent* a, const CollisionEvent* b){
-                return (a->time_ < b->time_);
-            }
-        );
-        EventRef ref = eventManager_.queueEvent(earliestCollision);
-        collisionGraph_->addEdge(earliestCollision->pA, earliestCollision->pB, ref);
+        if(!events.empty()){
+            CollisionEvent* earliestCollision = *std::min_element(events.begin(), events.end(),
+                [](const CollisionEvent* a, const CollisionEvent* b){
+                    return (a->time_ < b->time_);
+                }
+            );
+            EventRef ref = eventManager_.queueEvent(earliestCollision);
+            collisionGraph_->addEdge(earliestCollision->pA, earliestCollision->pB, ref);
+        }
     }
 
     return true;
 }
 
 void Simulation::run(void){
-    /* Pseudocode for 'run' function */
-    
+
     Time endTime = 100.0;
     
     bool running = true;
     while(running){
         const Event* nextEvent = eventManager_.getNextEvent();
         time_ = nextEvent->time_;
+        std::cout << time_ << std::endl;
 
         if(time_ >= endTime) break;
 
