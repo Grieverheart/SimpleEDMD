@@ -24,7 +24,7 @@
 class Simulation{
 public:
     Simulation(void):
-        nSpheres_(0), time_(0.0)
+        nSpheres_(0), time_(0.0), eventManager_(1000.0, 250000)
     {
         mtGen_.seed(0);
     }

@@ -86,7 +86,7 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
     Time time(0.0);
     bool isCollision = raySphereIntersection(radii_[pA] + radii_[pB], dist, relVel, time);
 
-    if(isCollision) return new CollisionEvent(time, pA, pB);
+    if(isCollision) return new CollisionEvent(time + time_, pA, pB);
     else return nullptr;
 }
 
@@ -122,19 +122,21 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
             if(eventA) eventsA.push_back(eventA);
             if(eventB) eventsB.push_back(eventB);
         }
-        auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
-            return (a->time_ < b->time_);
-        };
-        if(!eventsA.empty()){
-            auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
-            EventRef refA = eventManager_.queueEvent(minEventA);
-            collisionGraph_->addEdge(minEventA->pA, minEventA->pB, refA);
-        }
-        if(!eventsB.empty()){
-            auto minEventB = *std::min_element(eventsB.begin(), eventsB.end(), cmp);
-            EventRef refB = eventManager_.queueEvent(minEventB);
-            collisionGraph_->addEdge(minEventB->pA, minEventB->pB, refB);
-        }
+    }
+    auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
+        return (a->time_ < b->time_);
+    };
+    if(!eventsA.empty()){
+        auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
+        EventRef refA = eventManager_.queueEvent(minEventA);
+        collisionGraph_->addEdge(minEventA->pA, minEventA->pB, refA);
+        for(auto event: eventsA) if(event != minEventA) delete event;
+    }
+    if(!eventsB.empty()){
+        auto minEventB = *std::min_element(eventsB.begin(), eventsB.end(), cmp);
+        EventRef refB = eventManager_.queueEvent(minEventB);
+        collisionGraph_->addEdge(minEventB->pA, minEventB->pB, refB);
+        for(auto event: eventsB) if(event != minEventB) delete event;
     }
 }
 
@@ -173,6 +175,7 @@ bool Simulation::init(void){
             );
             EventRef ref = eventManager_.queueEvent(earliestCollision);
             collisionGraph_->addEdge(earliestCollision->pA, earliestCollision->pB, ref);
+            for(auto event: events) if(event != earliestCollision) delete event;
         }
     }
 
@@ -181,15 +184,15 @@ bool Simulation::init(void){
 
 void Simulation::run(void){
 
-    Time endTime = 100.0;
+    Time endTime = 10.0;
     
     bool running = true;
     while(running){
         const Event* nextEvent = eventManager_.getNextEvent();
         time_ = nextEvent->time_;
-        std::cout << time_ << std::endl;
+        //std::cout << time_ << std::endl;
 
-        if(time_ >= endTime) break;
+        if(time_ > endTime) break;
 
         switch(nextEvent->getType()){
         case EVT_COLLISION:{

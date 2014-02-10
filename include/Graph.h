@@ -30,7 +30,7 @@ public:
         for(size_t i = 0; i < N_; ++i){
             clear(i);
         }
-        delete nodes_;
+        delete[] nodes_;
     }
     void addEdge(size_t a, size_t b, EventRef eRef){
         Edge* edge = new Edge(&nodes_[a], &nodes_[b], eRef);
@@ -59,7 +59,7 @@ public:
         nodes_[a].edges.clear();
     }
 private:
-    size_t N_;
+    const size_t N_;
     Node *nodes_;
 };
 

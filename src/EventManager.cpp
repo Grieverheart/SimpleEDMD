@@ -42,11 +42,11 @@ void EventManager::clear(void){
 
 EventRef EventManager::queueEvent(Event* event){
     EventRef  eRef;
-    EventItem eItem;
     if(available_.empty()){
         eRef = eRefCount_++;
 
         events_.push_back(event);
+        EventItem eItem;
         eventItems_.push_back(eItem);
         //Resize binary tree like this
         size_t nEvents = events_.size();
@@ -57,9 +57,6 @@ EventRef EventManager::queueEvent(Event* event){
         auto first = available_.begin();
         eRef       = *first;
         available_.erase(first);
-        //We need to delete the previous event now, because when returning
-        //the next event even if we were to return a copy and destroy the local
-        //one, the Event's destructor would delete the data member
         delete events_[eRef];
         events_[eRef] = event;
     }
@@ -109,7 +106,10 @@ void EventManager::processOverflowList(void){
 
 void EventManager::deleteEvent(EventRef eRef){
     //For safety, we might have to first check if the event occurs
-    //if(available_.find(eRef) != available_.end()) return; //Event does not exist
+    //if(available_.find(eRef) != available_.end()){
+    //    printf("Error: Double delete of event %d\n", eRef);
+    //    return; //Event does not exist
+    //}
     EventItem& eItem = eventItems_[eRef];
     size_t index     = eItem.qIndex_;
     if(index == currentIndex_) cbtDelete(eRef);
@@ -179,8 +179,8 @@ const Event* EventManager::getNextEvent(void){
     }
 
     EventRef eRef = nodes_[1]; //The root contains the earliest event
-    cbtDelete(eRef);
-    releaseEventRef(eRef);
+    //cbtDelete(eRef);
+    //releaseEventRef(eRef);
 
     return events_[eRef];
 }

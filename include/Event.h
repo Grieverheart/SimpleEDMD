@@ -27,6 +27,9 @@ struct CollisionEvent: public Event{
     CollisionEvent(Time time, size_t particleA, size_t particleB):
         Event(time), pA(particleA), pB(particleB)
     {}
+
+    ~CollisionEvent(void){}
+
     EventType getType(void)const{
         return EVT_COLLISION;
     }
