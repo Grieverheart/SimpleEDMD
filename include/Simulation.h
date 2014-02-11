@@ -35,11 +35,13 @@ public:
     bool init(void);
     void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);
+    void saveConfig(const char* filename);
 private:
     bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t)const;
     CollisionEvent* getCollisionEvent(size_t pA, size_t pB)const;
     void runCollisionEvent(const CollisionEvent& event);
     Vec3d applyPeriodicBC(const Vec3d& vec)const;
+    void updateParticle(size_t pID);
 
     size_t nSpheres_;
     double boxSize_;

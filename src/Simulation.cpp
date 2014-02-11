@@ -40,6 +40,18 @@ void Simulation::readConfig(const char* filename){
 	fclose(fp);
 }
 
+void Simulation::saveConfig(const char* filename){
+    FILE *fp = fopen(filename, "w");
+    fprintf(fp, "%lu\n%f\n", nSpheres_, boxSize_);
+
+    for(size_t i = 0; i < nSpheres_; ++i){
+        updateParticle(i);
+        fprintf(fp, "%f\t%f\t%f\t", positions_[i].x, positions_[i].y, positions_[i].z);
+        fprintf(fp, "%f\n", radii_[i]);
+    }
+    fclose(fp);
+}
+
 void Simulation::addSphere(Vec3d pos, double radius){
     positions_.push_back(pos);
     radii_.push_back(radius);
@@ -47,33 +59,32 @@ void Simulation::addSphere(Vec3d pos, double radius){
 }
 
 Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-    Vec3d retVec = vec;
-    for(size_t i = 0; i < 3; ++i){
-        retVec[i] -= boxSize_ * int(vec[i] * (2.0 / boxSize_));
-    }
+    Vec3d retVec(0.0);
+    for(size_t i = 0; i < 3; ++i) retVec[i] = remainder(vec[i], boxSize_);
     return retVec;
 }
 
 //WARNING: Needs re-evaluation
 bool Simulation::raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t)const{
-    double B   = dot(dir, pos);
-    double det = B * B - dot(dir, dir) * (dot(pos, pos) - radius * radius);
-    if(det < 0.0f) return false;
+    double dirInvLength = 1.0 / sqrt(dot(dir, dir));
+    Vec3d dn  = dir * dirInvLength; //Normalize
+    double s  = dot(pos, dn);
+    double l2 = dot(pos, pos);
+    double r2 = radius * radius;
+    if(s < 0.0 && l2 > r2) return false;
 
-    double t0 = (B + sqrt(det)) / dot(dir, dir);
-    double t1 = (B - sqrt(det)) / dot(dir, dir);
-    bool retValue = false;
-    if(t0 > 0.0){
-        t = t0;
-        //mIntersection = t * dir; //Intersection point
-        retValue = true;
+    double m2 = l2 - s * s;
+    if(m2 > r2) return false;
+
+    double q = sqrt(r2 - m2);
+    if(l2 > r2) t = s - q;
+    else{
+        t = s + q;
+        printf("%f, %f\n", l2, r2);
     }
-    if(t1 < t && t1 > 0.0){
-        t = t1;
-        //mIntersection = t * dir;
-        retValue = true;
-    }
-    return retValue;
+    t *= dirInvLength;
+
+    return true;
 }
 
 CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
@@ -81,7 +92,7 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
     Vec3d velA = velocities_[pA], velB = velocities_[pB];
 
     Vec3d dist   = applyPeriodicBC(posB - posA);
-    Vec3d relVel = velB - velA;
+    Vec3d relVel = velA - velB;
 
     Time time(0.0);
     bool isCollision = raySphereIntersection(radii_[pA] + radii_[pB], dist, relVel, time);
@@ -90,42 +101,88 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
     else return nullptr;
 }
 
+void Simulation::updateParticle(size_t pID){
+    if(times_[pID] != time_){
+        positions_[pID] += velocities_[pID] * (time_ - times_[pID]);
+        times_[pID] = time_;
+    }
+}
+
 //NOTE: For simplicity, for now we assume equal mass spheres
 void Simulation::runCollisionEvent(const CollisionEvent& event){
-    Time time = event.time_;
+    static const auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
+        return (a->time_ < b->time_);
+    };
     size_t pA = event.pA;
     size_t pB = event.pB;
 
-    positions_[pA] += velocities_[pA] * (time - times_[pA]);
-    positions_[pB] += velocities_[pB] * (time - times_[pB]);
+    updateParticle(pA);
+    updateParticle(pB);
 
-    times_[pA] = times_[pB] = time;
+    {
+        Vec3d relVel   = velocities_[pA] - velocities_[pB];
+        Vec3d relPos   = applyPeriodicBC(positions_[pA] - positions_[pB]);
+        Vec3d deltaVel = relPos * (dot(relPos, relVel) / dot(relPos, relPos));
 
-    auto temp = velocities_[pA];
-    velocities_[pA] = velocities_[pB];
-    velocities_[pB] = temp;
+        velocities_[pA] -= deltaVel;
+        velocities_[pB] += deltaVel;
+    }
 
     auto assocsA = collisionGraph_->getAssociations(pA);
     collisionGraph_->clear(pA);
-    for(auto eRef: assocsA) eventManager_.deleteEvent(eRef);
+    for(auto eRef: assocsA){
+        eventManager_.deleteEvent(eRef.first);
+        if(eRef.second == pB) continue;
+        std::vector<CollisionEvent*> minEvents;
+        updateParticle(eRef.second);
+        for(size_t n = 0; n < nSpheres_; ++n){
+            if(n != eRef.second){
+                updateParticle(n);
+                auto event = getCollisionEvent(eRef.second, n);
+                if(event) minEvents.push_back(event);
+            }
+        }
+        if(!minEvents.empty()){
+            auto minEvent = *std::min_element(minEvents.begin(), minEvents.end(), cmp);
+            EventRef ref = eventManager_.queueEvent(minEvent);
+            collisionGraph_->addEdge(minEvent->pA, minEvent->pB, ref);
+            for(auto event: minEvents) if(event != minEvent) delete event;
+        }
+    }
     auto assocsB = collisionGraph_->getAssociations(pB);
     collisionGraph_->clear(pB);
-    for(auto eRef: assocsB) eventManager_.deleteEvent(eRef);
+    for(auto eRef: assocsB){
+        eventManager_.deleteEvent(eRef.first);
+        if(eRef.second == pA) continue;
+        std::vector<CollisionEvent*> minEvents;
+        updateParticle(eRef.second);
+        for(size_t n = 0; n < nSpheres_; ++n){
+            if(n != eRef.second){
+                updateParticle(n);
+                auto event = getCollisionEvent(eRef.second, n);
+                if(event) minEvents.push_back(event);
+            }
+        }
+        if(!minEvents.empty()){
+            auto minEvent = *std::min_element(minEvents.begin(), minEvents.end(), cmp);
+            EventRef ref = eventManager_.queueEvent(minEvent);
+            collisionGraph_->addEdge(minEvent->pA, minEvent->pB, ref);
+            for(auto event: minEvents) if(event != minEvent) delete event;
+        }
+    }
 
     //Recalculate collision events
     std::vector<CollisionEvent*> eventsA;
     std::vector<CollisionEvent*> eventsB;
     for(size_t n = 0; n < nSpheres_; ++n){
         if(n != pA && n != pB){
+            updateParticle(n);
             auto eventA = getCollisionEvent(pA, n);
             auto eventB = getCollisionEvent(pB, n);
             if(eventA) eventsA.push_back(eventA);
             if(eventB) eventsB.push_back(eventB);
         }
     }
-    auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
-        return (a->time_ < b->time_);
-    };
     if(!eventsA.empty()){
         auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
         EventRef refA = eventManager_.queueEvent(minEventA);
@@ -187,6 +244,8 @@ void Simulation::run(void){
     Time endTime = 10.0;
     
     bool running = true;
+    int nEvents = 0;
+    Time snapTime = 0.1;
     while(running){
         const Event* nextEvent = eventManager_.getNextEvent();
         time_ = nextEvent->time_;
@@ -203,6 +262,12 @@ void Simulation::run(void){
         default:
             running = false;
             break;
+        }
+        if(time_ >= snapTime){
+            char buff[64];
+            sprintf(buff, "Data/file%06d.dat", ++nEvents);
+            saveConfig(buff);
+            snapTime += 0.1;
         }
     }
 }

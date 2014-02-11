@@ -4,6 +4,7 @@
 #include "EventManager.h"
 #include <vector>
 #include <algorithm>
+#include <utility>
 
 struct Node;
 
@@ -37,10 +38,14 @@ public:
         nodes_[a].edges.push_back(edge);
         nodes_[b].edges.push_back(edge);
     }
-    std::vector<EventRef> getAssociations(size_t a){
-        std::vector<EventRef> result;
+    std::vector<std::pair<EventRef, size_t>> getAssociations(size_t a){
+        std::vector<std::pair<EventRef, size_t>> result;
         for(auto edge: nodes_[a].edges){
-            result.push_back(edge->ref);
+            std::pair<EventRef, size_t> pair;
+            if(size_t(edge->first - nodes_) != a) pair.second = edge->first - nodes_;
+            else pair.second = edge->second - nodes_;
+            pair.first = edge->ref;
+            result.push_back(pair);
         }
         return result;
     }

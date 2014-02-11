@@ -19,11 +19,11 @@ struct Vec3{
         return (&x)[i];
     }
 
-    Vec3<T> operator+(Vec3<T> other)const{
+    Vec3<T> operator+(const Vec3<T>& other)const{
         return Vec3<T>(x + other.x, y + other.y, z + other.z);
     }
 
-    Vec3<T> operator-(Vec3<T> other)const{
+    Vec3<T> operator-(const Vec3<T>& other)const{
         return Vec3<T>(x - other.x, y - other.y, z - other.z);
     }
 
