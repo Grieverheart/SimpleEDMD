@@ -2,7 +2,7 @@
 #define __EVENT_MANAGER_H
 
 #include "Event.h"
-#include <set>
+#include "BinaryHeap.h"
 #include <vector>
 #include <cstddef>
 
@@ -13,12 +13,13 @@ struct EventItem;
 //Consider collecting statistics to improve estimates of scaleFactor and llSize after clears
 class EventManager{
 public:
-    explicit EventManager(double scaleFactor, int llSize); //Consider making these template parameters
+    explicit EventManager(size_t nPart, double scaleFactor, int llSize); //Consider making these template parameters
     EventManager(void); //NOTE: temporary  function
     ~EventManager(void);
 
-    EventRef     queueEvent(Event* event);
-    void         updateEvent(EventRef ref, Event* event);
+    void         pushEvent(size_t pID, Event* event);
+    void         updateParticle(size_t pID);
+    void         clearParticle(size_t pID);
     const Event* getNextEvent(void);
     void         deleteEvent(EventRef ref);
     void         clear(void);
@@ -28,13 +29,13 @@ private:
     void cbtDelete(EventRef eRef);
     void cbtInsert(EventRef eRef);
 
-    void insertInEventQ(EventRef eRef);
+    void insertInEventQ(size_t eRef);
+    void deleteFromEventQ(size_t eRef);
     void processOverflowList(void);
-    void releaseEventRef(EventRef eRef);
 //Members
 private:
-    //NEW: Even better, use the id_manager, and when no id is available push_back
-    std::vector<Event*>    events_;
+    typedef BinaryHeap<Event*, EventPtrLess> PEL;
+    std::vector<PEL> events_;
 
     //Priority queue vars
     std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.
@@ -51,10 +52,6 @@ private:
     std::vector<size_t>   leafs_;
 
     int nCBTEvents_; //Current number of events in binary tree
-
-    //EventRef manager vars
-    int eRefCount_; //Current number of total events
-    std::set<EventRef> available_;
 };
 
 #endif

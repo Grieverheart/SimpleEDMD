@@ -8,66 +8,45 @@ struct EventItem{
     size_t   qIndex_;
 };
 
-EventManager::EventManager(double scaleFactor, int llSize):
+EventManager::EventManager(size_t nPart, double scaleFactor, int llSize):
     currentIndex_(0), baseIndex_(0),
     llSize_(llSize), scaleFactor_(scaleFactor),
-    nCBTEvents_(0),
-    eRefCount_(0)
+    nCBTEvents_(0)
 {
     llQueue_.resize(llSize_ + 1, EMPTY);
-    ////Fiddle with numbers
-    //events_.reserve(1000);
-    //eventItems_.reserve(1000);
-    //leafs_.reserve(1000);
-    //nodes_.reserve(1001);
+    events_.resize(nPart);
+    eventItems_.resize(nPart);
+    //Check these numbers
+    leafs_.resize(nPart + 1);
+    nodes_.resize(2 * nPart);
 }
 
 EventManager::~EventManager(void){
-    for(auto event: events_){
-        delete event;
-    }
-    currentIndex_ = 0;
-    baseIndex_    = 0;
-    nCBTEvents_   = 0;
-    eRefCount_    = 0;
-
-    available_.clear();
+    clear();
 }
 
 void EventManager::clear(void){
-    for(auto event: events_){
-        delete event;
+    for(auto pel: events_){
+        pel.clear();
     }
 }
 
-EventRef EventManager::queueEvent(Event* event){
-    EventRef  eRef;
-    if(available_.empty()){
-        eRef = eRefCount_++;
-
-        events_.push_back(event);
-        EventItem eItem;
-        eventItems_.push_back(eItem);
-        //Resize binary tree like this
-        size_t nEvents = events_.size();
-        leafs_.resize(nEvents + 1);
-        nodes_.resize(2 * nEvents);
-    }
-    else{
-        auto first = available_.begin();
-        eRef       = *first;
-        available_.erase(first);
-        delete events_[eRef];
-        events_[eRef] = event;
-    }
-
-    insertInEventQ(eRef);
-
-    return eRef;
+void EventManager::pushEvent(size_t pID, Event* event){
+    events_[pID].push(event);
 }
 
-void EventManager::insertInEventQ(EventRef eRef){
-    size_t index = (size_t)(scaleFactor_ * events_[eRef]->time_ - baseIndex_); 
+void EventManager::clearParticle(size_t pID){
+    events_[pID].clear();
+}
+
+void EventManager::updateParticle(size_t pID){
+    deleteFromEventQ(pID);
+    insertInEventQ(pID);
+}
+
+void EventManager::insertInEventQ(size_t eRef){
+    const Event* event = events_[eRef].top();
+    size_t index = (size_t)(scaleFactor_ * event->time_ - baseIndex_); 
 
     if(index > llSize_ - 1){
         index -= llSize_;
@@ -104,14 +83,9 @@ void EventManager::processOverflowList(void){
     }
 }
 
-void EventManager::deleteEvent(EventRef eRef){
-    //For safety, we might have to first check if the event occurs
-    //if(available_.find(eRef) != available_.end()){
-    //    printf("Error: Double delete of event %d\n", eRef);
-    //    return; //Event does not exist
-    //}
-    EventItem& eItem = eventItems_[eRef];
-    size_t index     = eItem.qIndex_;
+void EventManager::deleteFromEventQ(size_t eRef){
+    const EventItem& eItem = eventItems_[eRef];
+    size_t index = eItem.qIndex_;
     if(index == currentIndex_) cbtDelete(eRef);
     else{
         EventRef previous = eItem.previous_;
@@ -121,41 +95,6 @@ void EventManager::deleteEvent(EventRef eRef){
 
         if(next != EMPTY) eventItems_[next].previous_ = previous;
     }
-    releaseEventRef(eRef);
-}
-
-//CAUTION: Experimental
-void EventManager::updateEvent(EventRef eRef, Event* event){
-    EventItem& eItem = eventItems_[eRef];
-    size_t index     = eItem.qIndex_;
-
-    delete events_[eRef];
-    events_[eRef] = event;
-
-    if(index == currentIndex_) cbtUpdate(eRef);
-    else{
-        //Delete old event from linked list
-        EventRef previous = eItem.previous_;
-        EventRef next     = eItem.next_;
-        if(previous == EMPTY) llQueue_[index] = next;
-        else eventItems_[previous].next_ = next;
-
-        if(next != EMPTY) eventItems_[next].previous_ = previous;
-
-        //Insert new event in linked list
-        size_t newIndex = (size_t)(scaleFactor_ * events_[eRef]->time_ - baseIndex_); 
-        EventRef oldFirst = llQueue_[newIndex];
-
-        eItem.previous_    = EMPTY;
-        eItem.next_        = oldFirst;
-        eItem.qIndex_      = newIndex;
-        llQueue_[newIndex] = eRef;
-
-        if(oldFirst != EMPTY){
-            eventItems_[oldFirst].previous_ = eRef;
-        }
-    }
-    releaseEventRef(eRef);
 }
 
 //We might have to change this function at some point to return an EventRef instead
@@ -182,11 +121,7 @@ const Event* EventManager::getNextEvent(void){
     //cbtDelete(eRef);
     //releaseEventRef(eRef);
 
-    return events_[eRef];
-}
-
-void EventManager::releaseEventRef(EventRef eRef){
-    if(eRef < eRefCount_) available_.insert(eRef);
+    return events_[eRef].pop();
 }
 
 void EventManager::cbtUpdate(EventRef eRef){
@@ -195,7 +130,7 @@ void EventManager::cbtUpdate(EventRef eRef){
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
 
-        nodes_[father] = (events_[leftNode]->time_ < events_[rightNode]->time_)? leftNode : rightNode;
+        nodes_[father] = (events_[leftNode].top()->time_ < events_[rightNode].top()->time_)? leftNode : rightNode;
     }
 
     for( ; father > 0; father /= 2){
@@ -204,7 +139,7 @@ void EventManager::cbtUpdate(EventRef eRef){
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
 
-        nodes_[father] = (events_[leftNode]->time_ < events_[rightNode]->time_)? leftNode : rightNode;
+        nodes_[father] = (events_[leftNode].top()->time_ < events_[rightNode].top()->time_)? leftNode : rightNode;
 
         if(nodes_[father] == oldWinner) return;
     }

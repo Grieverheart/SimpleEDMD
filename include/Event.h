@@ -2,7 +2,7 @@
 #define __EVENT_H
 
 #include "Time.h"
-#include <cstdio>
+#include <cstddef>
 
 //Will eventually change this to a hashed string
 enum EventType{
@@ -35,6 +35,12 @@ struct CollisionEvent: public Event{
     }
 
     size_t pA, pB;
+};
+
+struct EventPtrLess{
+    bool operator()(Event* a, Event* b)const{
+        return a->time_ < b->time_;
+    }
 };
 
 #endif
