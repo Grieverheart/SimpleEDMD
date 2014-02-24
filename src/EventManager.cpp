@@ -22,9 +22,10 @@ EventManager::EventManager(size_t nPart, double scaleFactor, int llSize):
 }
 
 EventManager::~EventManager(void){
-    clear();
 }
 
+//TODO: Consider if we want to clear the pels or just clear the event queue.
+//Also, not yet complete.
 void EventManager::clear(void){
     for(auto pel: events_){
         pel.clear();
@@ -97,10 +98,6 @@ void EventManager::deleteFromEventQ(size_t eRef){
     }
 }
 
-//We might have to change this function at some point to return an EventRef instead
-//and add a function const Event& getEvent(EventRef ref); deleting multiple events
-//associated with one particle can then skip the event that just occured
-//NOTE: We might need to check somehow if there are any events at all
 const Event* EventManager::getNextEvent(void){
     while(nCBTEvents_ == 0){
         ++currentIndex_;
