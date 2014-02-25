@@ -2,7 +2,6 @@
 #include <cstring>
 #include <cstdlib>
 #include <cmath>
-#include <algorithm>
 #include <iostream>
 #include "include/Simulation.h"
 #include "include/EventManager.h"
@@ -80,7 +79,7 @@ bool Simulation::raySphereIntersection(double radius, const Vec3d& pos, const Ve
     if(l2 > r2) t = s - q;
     else{
         t = s + q;
-        printf("%f, %f\n", l2, r2);
+        //printf("%f, %f\n", l2, r2);
     }
     t *= dirInvLength;
 
@@ -97,7 +96,7 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
     Time time(0.0);
     bool isCollision = raySphereIntersection(radii_[pA] + radii_[pB], dist, relVel, time);
 
-    if(isCollision) return new CollisionEvent(time + time_, pA, pB);
+    if(isCollision) return new CollisionEvent(time + time_, pA, pB, nCollisions_[pB]);
     else return nullptr;
 }
 
@@ -110,11 +109,13 @@ void Simulation::updateParticle(size_t pID){
 
 //NOTE: For simplicity, for now we assume equal mass spheres
 void Simulation::runCollisionEvent(const CollisionEvent& event){
-    static const auto cmp = [](const CollisionEvent* a, const CollisionEvent* b){
-        return (a->time_ < b->time_);
-    };
     size_t pA = event.pA;
     size_t pB = event.pB;
+
+    if(nCollisions_[pB] != event.nBCollisions){
+        eventManager_->updateParticle(pA);
+        return;
+    }
 
     updateParticle(pA);
     updateParticle(pB);
@@ -128,81 +129,35 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
         velocities_[pB] += deltaVel;
     }
 
-    auto assocsA = collisionGraph_->getAssociations(pA);
-    collisionGraph_->clear(pA);
-    for(auto eRef: assocsA){
-        eventManager_.deleteEvent(eRef.first);
-        if(eRef.second == pB) continue;
-        std::vector<CollisionEvent*> minEvents;
-        updateParticle(eRef.second);
-        for(size_t n = 0; n < nSpheres_; ++n){
-            if(n != eRef.second){
-                updateParticle(n);
-                auto event = getCollisionEvent(eRef.second, n);
-                if(event) minEvents.push_back(event);
-            }
-        }
-        if(!minEvents.empty()){
-            auto minEvent = *std::min_element(minEvents.begin(), minEvents.end(), cmp);
-            EventRef ref = eventManager_.queueEvent(minEvent);
-            collisionGraph_->addEdge(minEvent->pA, minEvent->pB, ref);
-            for(auto event: minEvents) if(event != minEvent) delete event;
-        }
-    }
-    auto assocsB = collisionGraph_->getAssociations(pB);
-    collisionGraph_->clear(pB);
-    for(auto eRef: assocsB){
-        eventManager_.deleteEvent(eRef.first);
-        if(eRef.second == pA) continue;
-        std::vector<CollisionEvent*> minEvents;
-        updateParticle(eRef.second);
-        for(size_t n = 0; n < nSpheres_; ++n){
-            if(n != eRef.second){
-                updateParticle(n);
-                auto event = getCollisionEvent(eRef.second, n);
-                if(event) minEvents.push_back(event);
-            }
-        }
-        if(!minEvents.empty()){
-            auto minEvent = *std::min_element(minEvents.begin(), minEvents.end(), cmp);
-            EventRef ref = eventManager_.queueEvent(minEvent);
-            collisionGraph_->addEdge(minEvent->pA, minEvent->pB, ref);
-            for(auto event: minEvents) if(event != minEvent) delete event;
-        }
-    }
+    ++nCollisions_[pA];
+    ++nCollisions_[pB];
+
+    eventManager_->clearParticle(pA);
+    eventManager_->clearParticle(pB);
 
     //Recalculate collision events
-    std::vector<CollisionEvent*> eventsA;
-    std::vector<CollisionEvent*> eventsB;
     for(size_t n = 0; n < nSpheres_; ++n){
         if(n != pA && n != pB){
             updateParticle(n);
             auto eventA = getCollisionEvent(pA, n);
             auto eventB = getCollisionEvent(pB, n);
-            if(eventA) eventsA.push_back(eventA);
-            if(eventB) eventsB.push_back(eventB);
+            if(eventA) eventManager_->pushEvent(pA, eventA);
+            if(eventB) eventManager_->pushEvent(pB, eventB);
         }
     }
-    if(!eventsA.empty()){
-        auto minEventA = *std::min_element(eventsA.begin(), eventsA.end(), cmp);
-        EventRef refA = eventManager_.queueEvent(minEventA);
-        collisionGraph_->addEdge(minEventA->pA, minEventA->pB, refA);
-        for(auto event: eventsA) if(event != minEventA) delete event;
-    }
-    if(!eventsB.empty()){
-        auto minEventB = *std::min_element(eventsB.begin(), eventsB.end(), cmp);
-        EventRef refB = eventManager_.queueEvent(minEventB);
-        collisionGraph_->addEdge(minEventB->pA, minEventB->pB, refB);
-        for(auto event: eventsB) if(event != minEventB) delete event;
-    }
+    eventManager_->updateParticle(pA);
+    eventManager_->updateParticle(pB);
 }
 
 bool Simulation::init(void){
-    if(nSpheres_) collisionGraph_ = new Graph(nSpheres_);
+    if(nSpheres_) eventManager_ = new EventManager(nSpheres_, 1000.0, 250000);
     else return false;
 
     //Initialize particle times to zero
     times_.resize(nSpheres_, 0.0);
+
+    //Initialize number of collisions to zero
+    nCollisions_.resize(nSpheres_, 0);
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
@@ -219,21 +174,11 @@ bool Simulation::init(void){
 
     //Find initial collision events
     for(size_t i = 0; i < nSpheres_; ++i){
-        std::vector<CollisionEvent*> events;
         for(size_t j = i + 1; j < nSpheres_; ++j){
             auto event = getCollisionEvent(i, j);
-            if(event) events.push_back(event);
+            if(event) eventManager_->pushEvent(i, event);
         }
-        if(!events.empty()){
-            CollisionEvent* earliestCollision = *std::min_element(events.begin(), events.end(),
-                [](const CollisionEvent* a, const CollisionEvent* b){
-                    return (a->time_ < b->time_);
-                }
-            );
-            EventRef ref = eventManager_.queueEvent(earliestCollision);
-            collisionGraph_->addEdge(earliestCollision->pA, earliestCollision->pB, ref);
-            for(auto event: events) if(event != earliestCollision) delete event;
-        }
+        if(!eventManager_->empty(i)) eventManager_->insertParticle(i);
     }
 
     return true;
@@ -247,7 +192,7 @@ void Simulation::run(void){
     int nEvents = 0;
     Time snapTime = 0.1;
     while(running){
-        const Event* nextEvent = eventManager_.getNextEvent();
+        const Event* nextEvent = eventManager_->getNextEvent();
         time_ = nextEvent->time_;
         //std::cout << time_ << std::endl;
 
@@ -255,8 +200,9 @@ void Simulation::run(void){
 
         switch(nextEvent->getType()){
         case EVT_COLLISION:{
-                auto collisionEvent = *static_cast<const CollisionEvent*>(nextEvent);
-                runCollisionEvent(collisionEvent);
+                auto collisionEvent = static_cast<const CollisionEvent*>(nextEvent);
+                runCollisionEvent(*collisionEvent);
+                delete collisionEvent;
             }
             break;
         default:

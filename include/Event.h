@@ -24,8 +24,8 @@ public:
 inline Event::~Event(void){}
 
 struct CollisionEvent: public Event{
-    CollisionEvent(Time time, size_t particleA, size_t particleB):
-        Event(time), pA(particleA), pB(particleB)
+    CollisionEvent(Time time, size_t particleA, size_t particleB, size_t numCollisionsB):
+        Event(time), pA(particleA), pB(particleB), nBCollisions(numCollisionsB)
     {}
 
     ~CollisionEvent(void){}
@@ -35,6 +35,7 @@ struct CollisionEvent: public Event{
     }
 
     size_t pA, pB;
+    size_t nBCollisions;
 };
 
 struct EventPtrLess{

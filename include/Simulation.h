@@ -5,7 +5,6 @@
 #include <random>
 #include "Vec.h"
 #include "EventManager.h"
-#include "Graph.h"
 
 //Start by creating a simple simulation class so we can start testing.
 //After sufficient testing, we can move to the entity-component system
@@ -24,12 +23,12 @@
 class Simulation{
 public:
     Simulation(void):
-        nSpheres_(0), time_(0.0), eventManager_(1000.0, 250000)
+        nSpheres_(0), time_(0.0)
     {
         mtGen_.seed(0);
     }
     ~Simulation(void){
-        delete collisionGraph_;
+        delete eventManager_;
     }
     void run(void);
     bool init(void);
@@ -46,14 +45,13 @@ private:
     size_t nSpheres_;
     double boxSize_;
     Time   time_;
+    std::vector<size_t> nCollisions_;
     std::vector<double> radii_;
     std::vector<Time>   times_;
     std::vector<Vec3d>  positions_;
     std::vector<Vec3d>  velocities_;
 
-    Graph* collisionGraph_;
-
-    EventManager eventManager_;
+    EventManager* eventManager_;
 
     std::mt19937 mtGen_;
 };

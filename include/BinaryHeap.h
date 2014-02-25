@@ -28,6 +28,10 @@ public:
         data_.clear();
     }
 
+    bool empty(void)const{
+        return (data_.size() < 2);
+    }
+
     void push(T* val){
         data_.push_back(val);
 
@@ -74,6 +78,9 @@ private:
     std::vector<T*> data_;
     static Compare comp_;
 };
+
+template<class T, class Compare>
+Compare BinaryHeap<T*, Compare>::comp_ = Compare();
 
 
 #endif

@@ -14,15 +14,16 @@ struct EventItem;
 class EventManager{
 public:
     explicit EventManager(size_t nPart, double scaleFactor, int llSize); //Consider making these template parameters
-    EventManager(void); //NOTE: temporary  function
     ~EventManager(void);
 
-    void         pushEvent(size_t pID, Event* event);
-    void         updateParticle(size_t pID);
-    void         clearParticle(size_t pID);
-    const Event* getNextEvent(void);
-    void         deleteEvent(EventRef ref);
-    void         clear(void);
+    void    pushEvent(size_t pID, Event* event);
+    void    updateParticle(size_t pID);
+    void    insertParticle(size_t pID);
+    void    clearParticle(size_t pID);
+    Event*  getNextEvent(void);
+    void    deleteEvent(EventRef ref);
+    void    clear(void);
+    bool    empty(size_t pID)const;
 //private Functions
 private:
     void cbtUpdate(EventRef eRef);

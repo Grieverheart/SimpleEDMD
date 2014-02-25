@@ -27,9 +27,11 @@ EventManager::~EventManager(void){
 //TODO: Consider if we want to clear the pels or just clear the event queue.
 //Also, not yet complete.
 void EventManager::clear(void){
-    for(auto pel: events_){
-        pel.clear();
-    }
+    for(size_t i = 0; i < events_.size(); ++i) clearParticle(i);
+}
+
+bool EventManager::empty(size_t pID)const{
+    return events_[pID].empty();
 }
 
 void EventManager::pushEvent(size_t pID, Event* event){
@@ -40,6 +42,11 @@ void EventManager::clearParticle(size_t pID){
     events_[pID].clear();
 }
 
+void EventManager::insertParticle(size_t pID){
+    insertInEventQ(pID);
+}
+
+//NOTE: Should try to code without using delete and insert
 void EventManager::updateParticle(size_t pID){
     deleteFromEventQ(pID);
     insertInEventQ(pID);
@@ -66,9 +73,7 @@ void EventManager::insertInEventQ(size_t eRef){
         eItem.next_     = oldFirst;
         llQueue_[index] = eRef;
 
-        if(oldFirst != EMPTY){
-            eventItems_[oldFirst].previous_ = eRef;
-        }
+        if(oldFirst != EMPTY) eventItems_[oldFirst].previous_ = eRef;
     }
 }
 
@@ -84,6 +89,7 @@ void EventManager::processOverflowList(void){
     }
 }
 
+//NOTE: At the moment this doesn't work if the event manager is empty
 void EventManager::deleteFromEventQ(size_t eRef){
     const EventItem& eItem = eventItems_[eRef];
     size_t index = eItem.qIndex_;
@@ -98,7 +104,7 @@ void EventManager::deleteFromEventQ(size_t eRef){
     }
 }
 
-const Event* EventManager::getNextEvent(void){
+Event* EventManager::getNextEvent(void){
     while(nCBTEvents_ == 0){
         ++currentIndex_;
         if(currentIndex_ == llSize_){
