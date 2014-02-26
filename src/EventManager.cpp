@@ -15,6 +15,7 @@ EventManager::EventManager(size_t nPart, double scaleFactor, int llSize):
 {
     llQueue_.resize(llSize_ + 1, EMPTY);
     events_.resize(nPart);
+    isInserted_.resize(nPart, false);
     eventItems_.resize(nPart);
     //Check these numbers
     leafs_.resize(nPart + 1);
@@ -27,32 +28,33 @@ EventManager::~EventManager(void){
 //TODO: Consider if we want to clear the pels or just clear the event queue.
 //Also, not yet complete.
 void EventManager::clear(void){
-    for(size_t i = 0; i < events_.size(); ++i) clearParticle(i);
+    for(size_t i = 0; i < events_.size(); ++i) clear(i);
+}
+
+void EventManager::clear(size_t pID){
+    events_[pID].clear();
 }
 
 bool EventManager::empty(size_t pID)const{
     return events_[pID].empty();
 }
 
-void EventManager::pushEvent(size_t pID, Event* event){
+void EventManager::push(size_t pID, Event* event){
     events_[pID].push(event);
 }
 
-void EventManager::clearParticle(size_t pID){
-    events_[pID].clear();
-}
-
-void EventManager::insertParticle(size_t pID){
+void EventManager::insert(size_t pID){
     insertInEventQ(pID);
 }
 
 //NOTE: Should try to code without using delete and insert
-void EventManager::updateParticle(size_t pID){
-    deleteFromEventQ(pID);
-    insertInEventQ(pID);
+void EventManager::update(size_t pID){
+    if(isInserted_[pID]) deleteFromEventQ(pID);
+    if(!events_[pID].empty()) insertInEventQ(pID);
 }
 
 void EventManager::insertInEventQ(size_t eRef){
+    isInserted_[eRef] = true;
     const Event* event = events_[eRef].top();
     size_t index = (size_t)(scaleFactor_ * event->time_ - baseIndex_); 
 

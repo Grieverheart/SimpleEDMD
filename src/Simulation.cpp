@@ -79,7 +79,7 @@ bool Simulation::raySphereIntersection(double radius, const Vec3d& pos, const Ve
     if(l2 > r2) t = s - q;
     else{
         t = s + q;
-        //printf("%f, %f\n", l2, r2);
+        printf("%f, %f\n", l2, r2);
     }
     t *= dirInvLength;
 
@@ -113,7 +113,7 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     size_t pB = event.pB;
 
     if(nCollisions_[pB] != event.nBCollisions){
-        eventManager_->updateParticle(pA);
+        eventManager_->update(pA);
         return;
     }
 
@@ -132,8 +132,8 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     ++nCollisions_[pA];
     ++nCollisions_[pB];
 
-    eventManager_->clearParticle(pA);
-    eventManager_->clearParticle(pB);
+    eventManager_->clear(pA);
+    eventManager_->clear(pB);
 
     //Recalculate collision events
     for(size_t n = 0; n < nSpheres_; ++n){
@@ -141,16 +141,16 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
             updateParticle(n);
             auto eventA = getCollisionEvent(pA, n);
             auto eventB = getCollisionEvent(pB, n);
-            if(eventA) eventManager_->pushEvent(pA, eventA);
-            if(eventB) eventManager_->pushEvent(pB, eventB);
+            if(eventA) eventManager_->push(pA, eventA);
+            if(eventB) eventManager_->push(pB, eventB);
         }
     }
-    eventManager_->updateParticle(pA);
-    eventManager_->updateParticle(pB);
+    eventManager_->update(pA);
+    eventManager_->update(pB);
 }
 
 bool Simulation::init(void){
-    if(nSpheres_) eventManager_ = new EventManager(nSpheres_, 1000.0, 250000);
+    if(nSpheres_) eventManager_ = new EventManager(nSpheres_, 5000.0, 250000);
     else return false;
 
     //Initialize particle times to zero
@@ -173,13 +173,16 @@ bool Simulation::init(void){
     }
 
     //Find initial collision events
+    int nEvents = 0;
     for(size_t i = 0; i < nSpheres_; ++i){
         for(size_t j = i + 1; j < nSpheres_; ++j){
             auto event = getCollisionEvent(i, j);
-            if(event) eventManager_->pushEvent(i, event);
+            if(event) eventManager_->push(i, event);
         }
-        if(!eventManager_->empty(i)) eventManager_->insertParticle(i);
+        if(!eventManager_->empty(i)) ++nEvents;
+        eventManager_->update(i);
     }
+    printf("%d\n", nEvents);
 
     return true;
 }
@@ -192,15 +195,13 @@ void Simulation::run(void){
     int nEvents = 0;
     Time snapTime = 0.1;
     while(running){
-        const Event* nextEvent = eventManager_->getNextEvent();
+        Event* nextEvent = eventManager_->getNextEvent();
         time_ = nextEvent->time_;
         //std::cout << time_ << std::endl;
 
-        if(time_ > endTime) break;
-
         switch(nextEvent->getType()){
         case EVT_COLLISION:{
-                auto collisionEvent = static_cast<const CollisionEvent*>(nextEvent);
+                auto collisionEvent = static_cast<CollisionEvent*>(nextEvent);
                 runCollisionEvent(*collisionEvent);
                 delete collisionEvent;
             }
@@ -209,6 +210,7 @@ void Simulation::run(void){
             running = false;
             break;
         }
+        if(time_ > endTime) break;
         if(time_ >= snapTime){
             char buff[64];
             sprintf(buff, "Data/file%06d.dat", ++nEvents);

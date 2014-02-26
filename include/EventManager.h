@@ -16,14 +16,13 @@ public:
     explicit EventManager(size_t nPart, double scaleFactor, int llSize); //Consider making these template parameters
     ~EventManager(void);
 
-    void    pushEvent(size_t pID, Event* event);
-    void    updateParticle(size_t pID);
-    void    insertParticle(size_t pID);
-    void    clearParticle(size_t pID);
-    Event*  getNextEvent(void);
-    void    deleteEvent(EventRef ref);
+    void    push(size_t pID, Event* event);
+    void    update(size_t pID);
+    void    insert(size_t pID);
     void    clear(void);
+    void    clear(size_t pID);
     bool    empty(size_t pID)const;
+    Event*  getNextEvent(void);
 //private Functions
 private:
     void cbtUpdate(EventRef eRef);
@@ -37,6 +36,8 @@ private:
 private:
     typedef BinaryHeap<Event*, EventPtrLess> PEL;
     std::vector<PEL> events_;
+    //We use this as a temporary measure, since with cell list, all particles will have at least one event
+    std::vector<bool> isInserted_; 
 
     //Priority queue vars
     std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.
