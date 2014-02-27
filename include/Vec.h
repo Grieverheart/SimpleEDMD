@@ -3,6 +3,10 @@
 
 template<typename T>
 struct Vec3{
+    Vec3(void):
+        x(0.0), y(0.0), z(0.0)
+    {}
+
     Vec3(T xx, T yy, T zz):
         x(xx), y(yy), z(zz)
     {}

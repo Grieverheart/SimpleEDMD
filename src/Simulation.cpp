@@ -51,15 +51,32 @@ void Simulation::saveConfig(const char* filename){
     fclose(fp);
 }
 
-void Simulation::addSphere(Vec3d pos, double radius){
-    positions_.push_back(pos);
-    radii_.push_back(radius);
-    ++nSpheres_;
-}
+//Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
+//    Vec3d retVec(0.0);
+//    for(size_t i = 0; i < 3; ++i) retVec[i] = remainder(vec[i], boxSize_);
+//    return retVec;
+//}
 
+//// Most efficient but vec is required to be -B < vec < B
+//Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
+//    Vec3d retVec(0.0);
+//    for(size_t i = 0; i < 3; ++i){
+//        retVec[i] = vec[i] - int(vec[i] * (2.0 / boxSize_)) * boxSize_;
+//    }
+//    return retVec;
+//}
+//
+
+// More efficient but vec is required to be -1.5B < vec < 1.5B
 Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
     Vec3d retVec(0.0);
-    for(size_t i = 0; i < 3; ++i) retVec[i] = remainder(vec[i], boxSize_);
+    static double a = 2.0 / boxSize_;
+    for(size_t i = 0; i < 3; ++i){
+        int k = vec[i] * a;
+        retVec[i] = vec[i] - k * boxSize_;
+        k = retVec[i] * a;
+        retVec[i] = retVec[i] - k * boxSize_;
+    }
     return retVec;
 }
 
@@ -103,6 +120,7 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
 void Simulation::updateParticle(size_t pID){
     if(times_[pID] != time_){
         positions_[pID] += velocities_[pID] * (time_ - times_[pID]);
+        //for(int i = 0; i < 3; ++i) positions_[pID][i] -= int(positions_[pID][i] * (2.0 / boxSize_) - 1.0) * boxSize_;
         times_[pID] = time_;
     }
 }
@@ -113,7 +131,7 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     size_t pB = event.pB;
 
     if(nCollisions_[pB] != event.nBCollisions){
-        eventManager_->update(pA);
+        eventManager_.update(pA);
         return;
     }
 
@@ -132,8 +150,8 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     ++nCollisions_[pA];
     ++nCollisions_[pB];
 
-    eventManager_->clear(pA);
-    eventManager_->clear(pB);
+    eventManager_.clear(pA);
+    eventManager_.clear(pB);
 
     //Recalculate collision events
     for(size_t n = 0; n < nSpheres_; ++n){
@@ -141,16 +159,17 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
             updateParticle(n);
             auto eventA = getCollisionEvent(pA, n);
             auto eventB = getCollisionEvent(pB, n);
-            if(eventA) eventManager_->push(pA, eventA);
-            if(eventB) eventManager_->push(pB, eventB);
+            if(eventA) eventManager_.push(pA, eventA);
+            if(eventB) eventManager_.push(pB, eventB);
         }
     }
-    eventManager_->update(pA);
-    eventManager_->update(pB);
+
+    eventManager_.update(pA);
+    eventManager_.update(pB);
 }
 
 bool Simulation::init(void){
-    if(nSpheres_) eventManager_ = new EventManager(nSpheres_, 5000.0, 250000);
+    if(nSpheres_) eventManager_.resize(nSpheres_);
     else return false;
 
     //Initialize particle times to zero
@@ -173,16 +192,13 @@ bool Simulation::init(void){
     }
 
     //Find initial collision events
-    int nEvents = 0;
     for(size_t i = 0; i < nSpheres_; ++i){
         for(size_t j = i + 1; j < nSpheres_; ++j){
             auto event = getCollisionEvent(i, j);
-            if(event) eventManager_->push(i, event);
+            if(event) eventManager_.push(i, event);
         }
-        if(!eventManager_->empty(i)) ++nEvents;
-        eventManager_->update(i);
     }
-    printf("%d\n", nEvents);
+    eventManager_.init();
 
     return true;
 }
@@ -195,7 +211,7 @@ void Simulation::run(void){
     int nEvents = 0;
     Time snapTime = 0.1;
     while(running){
-        Event* nextEvent = eventManager_->getNextEvent();
+        Event* nextEvent = eventManager_.getNextEvent();
         time_ = nextEvent->time_;
         //std::cout << time_ << std::endl;
 

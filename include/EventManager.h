@@ -13,12 +13,13 @@ struct EventItem;
 //Consider collecting statistics to improve estimates of scaleFactor and llSize after clears
 class EventManager{
 public:
-    explicit EventManager(size_t nPart, double scaleFactor, int llSize); //Consider making these template parameters
+     EventManager(void); //Consider making these template parameters
     ~EventManager(void);
 
+    void    resize(size_t nPart);
+    void    init(void);
     void    push(size_t pID, Event* event);
     void    update(size_t pID);
-    void    insert(size_t pID);
     void    clear(void);
     void    clear(size_t pID);
     bool    empty(size_t pID)const;

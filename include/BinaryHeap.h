@@ -13,12 +13,19 @@ template<class T, class Compare>
 class BinaryHeap<T*, Compare>{
 public:
     BinaryHeap(void){
-        //data_.reserve(6);
         data_.push_back(nullptr);
     }
 
     ~BinaryHeap(void){
         clear();
+    }
+    
+    BinaryHeap(const BinaryHeap& other) = delete;
+
+    BinaryHeap(BinaryHeap&& other):
+        data_(other.data_)
+    {
+        other.data_.clear();
     }
 
     void clear(void){
@@ -26,6 +33,7 @@ public:
             delete element;
         }
         data_.clear();
+        data_.push_back(nullptr);
     }
 
     bool empty(void)const{

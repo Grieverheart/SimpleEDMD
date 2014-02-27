@@ -27,12 +27,9 @@ public:
     {
         mtGen_.seed(0);
     }
-    ~Simulation(void){
-        delete eventManager_;
-    }
+
     void run(void);
     bool init(void);
-    void addSphere(Vec3d position, double radius);
     void readConfig(const char* filename);
     void saveConfig(const char* filename);
 private:
@@ -51,7 +48,7 @@ private:
     std::vector<Vec3d>  positions_;
     std::vector<Vec3d>  velocities_;
 
-    EventManager* eventManager_;
+    EventManager eventManager_;
 
     std::mt19937 mtGen_;
 };

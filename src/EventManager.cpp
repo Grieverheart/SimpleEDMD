@@ -8,12 +8,15 @@ struct EventItem{
     size_t   qIndex_;
 };
 
-EventManager::EventManager(size_t nPart, double scaleFactor, int llSize):
+EventManager::EventManager(void):
     currentIndex_(0), baseIndex_(0),
-    llSize_(llSize), scaleFactor_(scaleFactor),
     nCBTEvents_(0)
-{
-    llQueue_.resize(llSize_ + 1, EMPTY);
+{}
+
+EventManager::~EventManager(void){
+}
+
+void EventManager::resize(size_t nPart){
     events_.resize(nPart);
     isInserted_.resize(nPart, false);
     eventItems_.resize(nPart);
@@ -22,11 +25,34 @@ EventManager::EventManager(size_t nPart, double scaleFactor, int llSize):
     nodes_.resize(2 * nPart);
 }
 
-EventManager::~EventManager(void){
+void EventManager::init(void){
+    //Instrument queue
+    {
+        Time tmax = 0.0;
+        Time tmin[2] = {100000.0};
+        for(size_t i = 0; i < events_.size(); ++i){
+            if(events_[i].empty()) continue;
+
+            Time time = events_[i].top()->time_;
+            Time temp = tmin[0];
+            tmin[0] = std::min(tmin[0], time);
+            if(tmin[0] != temp) tmin[1] = temp;
+            tmax = std::max(tmax, time);
+        }
+        Time dtmin = tmin[1] - tmin[0];
+        Time dtmax = tmax - tmin[0];
+
+        scaleFactor_ = 0.1 / dtmin;
+        llSize_      = scaleFactor_ * dtmax;
+    }
+
+    llQueue_.resize(llSize_ + 1, EMPTY);
+
+    for(size_t i = 0; i < events_.size(); ++i){
+        if(!events_[i].empty()) insertInEventQ(i);
+    }
 }
 
-//TODO: Consider if we want to clear the pels or just clear the event queue.
-//Also, not yet complete.
 void EventManager::clear(void){
     for(size_t i = 0; i < events_.size(); ++i) clear(i);
 }
@@ -41,10 +67,6 @@ bool EventManager::empty(size_t pID)const{
 
 void EventManager::push(size_t pID, Event* event){
     events_[pID].push(event);
-}
-
-void EventManager::insert(size_t pID){
-    insertInEventQ(pID);
 }
 
 //NOTE: Should try to code without using delete and insert
@@ -93,6 +115,7 @@ void EventManager::processOverflowList(void){
 
 //NOTE: At the moment this doesn't work if the event manager is empty
 void EventManager::deleteFromEventQ(size_t eRef){
+    isInserted_[eRef] = false;
     const EventItem& eItem = eventItems_[eRef];
     size_t index = eItem.qIndex_;
     if(index == currentIndex_) cbtDelete(eRef);
@@ -116,15 +139,14 @@ Event* EventManager::getNextEvent(void){
         }
 
         //populate binary tree
-        for(EventRef eRef = llQueue_[currentIndex_]; eRef != EMPTY; eRef = eventItems_[eRef].next_)
+        for(EventRef eRef = llQueue_[currentIndex_]; eRef != EMPTY; eRef = eventItems_[eRef].next_){
             cbtInsert(eRef);
+        }
 
         llQueue_[currentIndex_] = EMPTY;
     }
 
     EventRef eRef = nodes_[1]; //The root contains the earliest event
-    //cbtDelete(eRef);
-    //releaseEventRef(eRef);
 
     return events_[eRef].pop();
 }
