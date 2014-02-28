@@ -10,6 +10,8 @@
 //NOTE:
 //1. Make Boundary Conditions a class so that we can change it easily.
 //2. Make a Collision Response class for different collision responses.
+//3. Will probably introduce the notion of properties for quantities such
+//   as mass.
 
 //NOTE: Consider using smart pointers for passing events around
 class Simulation{
