@@ -1,6 +1,4 @@
 #include <iostream>
-#include "include/Time.h"
-#include "include/EventManager.h"
 #include "include/Simulation.h"
 
 

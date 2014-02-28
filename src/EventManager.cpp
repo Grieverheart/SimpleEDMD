@@ -28,19 +28,19 @@ void EventManager::resize(size_t nPart){
 void EventManager::init(void){
     //Instrument queue
     {
-        Time tmax = 0.0;
-        Time tmin[2] = {100000.0};
+        double tmax = 0.0;
+        double tmin[2] = {100000.0};
         for(size_t i = 0; i < events_.size(); ++i){
             if(events_[i].empty()) continue;
 
-            Time time = events_[i].top()->time_;
-            Time temp = tmin[0];
+            double time = events_[i].top()->time_;
+            double temp = tmin[0];
             tmin[0] = std::min(tmin[0], time);
             if(tmin[0] != temp) tmin[1] = temp;
             tmax = std::max(tmax, time);
         }
-        Time dtmin = tmin[1] - tmin[0];
-        Time dtmax = tmax - tmin[0];
+        double dtmin = tmin[1] - tmin[0];
+        double dtmax = tmax - tmin[0];
 
         scaleFactor_ = 0.1 / dtmin;
         llSize_      = scaleFactor_ * dtmax;

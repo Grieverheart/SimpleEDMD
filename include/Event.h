@@ -1,7 +1,6 @@
 #ifndef __EVENT_H
 #define __EVENT_H
 
-#include "Time.h"
 #include <cstddef>
 
 //Will eventually change this to a hashed string
@@ -13,18 +12,18 @@ enum EventType{
 //NOTE: Consider using boost::variant, it should give better performance
 class Event{
 public:
-    Event(Time time):
+    Event(double time):
         time_(time)
     {}
     virtual ~Event(void) = 0;
     virtual EventType getType(void)const = 0;
 
-    Time time_;
+    double time_;
 };
 inline Event::~Event(void){}
 
 struct CollisionEvent: public Event{
-    CollisionEvent(Time time, size_t particleA, size_t particleB, size_t numCollisionsB):
+    CollisionEvent(double time, size_t particleA, size_t particleB, size_t numCollisionsB):
         Event(time), pA(particleA), pB(particleB), nBCollisions(numCollisionsB)
     {}
 

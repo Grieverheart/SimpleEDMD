@@ -5,6 +5,7 @@
 #include <iostream>
 #include "include/Simulation.h"
 #include "include/EventManager.h"
+#include "include/ray_intersections.h"
 
 void Simulation::readConfig(const char* filename){
 	char line[128];
@@ -31,7 +32,9 @@ void Simulation::readConfig(const char* filename){
                 else radii_.push_back(atof(t1));
                 u++;
             }
-            positions_.push_back(coords);
+            Particle part;
+            part.pos = coords;
+            particles_.emplace_back(part);
 		}
 		i++;
 	}
@@ -45,7 +48,7 @@ void Simulation::saveConfig(const char* filename){
 
     for(size_t i = 0; i < nSpheres_; ++i){
         updateParticle(i);
-        fprintf(fp, "%f\t%f\t%f\t", positions_[i].x, positions_[i].y, positions_[i].z);
+        fprintf(fp, "%f\t%f\t%f\t", particles_[i].pos.x, particles_[i].pos.y, particles_[i].pos.z);
         fprintf(fp, "%f\n", radii_[i]);
     }
     fclose(fp);
@@ -65,7 +68,6 @@ void Simulation::saveConfig(const char* filename){
 //    }
 //    return retVec;
 //}
-//
 
 // More efficient but vec is required to be -1.5B < vec < 1.5B
 Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
@@ -80,37 +82,14 @@ Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
     return retVec;
 }
 
-//WARNING: Needs re-evaluation
-bool Simulation::raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t)const{
-    double dirInvLength = 1.0 / sqrt(dot(dir, dir));
-    Vec3d dn  = dir * dirInvLength; //Normalize
-    double s  = dot(pos, dn);
-    double l2 = dot(pos, pos);
-    double r2 = radius * radius;
-    if(s < 0.0 && l2 > r2) return false;
-
-    double m2 = l2 - s * s;
-    if(m2 > r2) return false;
-
-    double q = sqrt(r2 - m2);
-    if(l2 > r2) t = s - q;
-    else{
-        t = s + q;
-        printf("%f, %f\n", l2, r2);
-    }
-    t *= dirInvLength;
-
-    return true;
-}
-
 CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
-    Vec3d posA = positions_[pA],  posB = positions_[pB];
-    Vec3d velA = velocities_[pA], velB = velocities_[pB];
+    const Particle& partA = particles_[pA];
+    const Particle& partB = particles_[pB];
 
-    Vec3d dist   = applyPeriodicBC(posB - posA);
-    Vec3d relVel = velA - velB;
+    Vec3d dist   = applyPeriodicBC(partB.pos - partA.pos);
+    Vec3d relVel = partA.vel - partB.vel;
 
-    Time time(0.0);
+    double time(0.0);
     bool isCollision = raySphereIntersection(radii_[pA] + radii_[pB], dist, relVel, time);
 
     if(isCollision) return new CollisionEvent(time + time_, pA, pB, nCollisions_[pB]);
@@ -118,10 +97,10 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
 }
 
 void Simulation::updateParticle(size_t pID){
-    if(times_[pID] != time_){
-        positions_[pID] += velocities_[pID] * (time_ - times_[pID]);
+    if(particles_[pID].time != time_){
+        particles_[pID].pos += particles_[pID].vel * (time_ - particles_[pID].time);
         //for(int i = 0; i < 3; ++i) positions_[pID][i] -= int(positions_[pID][i] * (2.0 / boxSize_) - 1.0) * boxSize_;
-        times_[pID] = time_;
+        particles_[pID].time = time_;
     }
 }
 
@@ -139,12 +118,12 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     updateParticle(pB);
 
     {
-        Vec3d relVel   = velocities_[pA] - velocities_[pB];
-        Vec3d relPos   = applyPeriodicBC(positions_[pA] - positions_[pB]);
+        Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
+        Vec3d relPos   = applyPeriodicBC(particles_[pA].pos - particles_[pB].pos);
         Vec3d deltaVel = relPos * (dot(relPos, relVel) / dot(relPos, relPos));
 
-        velocities_[pA] -= deltaVel;
-        velocities_[pB] += deltaVel;
+        particles_[pA].vel -= deltaVel;
+        particles_[pB].vel += deltaVel;
     }
 
     ++nCollisions_[pA];
@@ -172,8 +151,7 @@ bool Simulation::init(void){
     if(nSpheres_) eventManager_.resize(nSpheres_);
     else return false;
 
-    //Initialize particle times to zero
-    times_.resize(nSpheres_, 0.0);
+    particles_.resize(nSpheres_);
 
     //Initialize number of collisions to zero
     nCollisions_.resize(nSpheres_, 0);
@@ -188,7 +166,7 @@ bool Simulation::init(void){
             sum += vec[j] * vec[j];
         }
         vec = vec * (1.0 / sqrt(sum));
-        velocities_.push_back(vec);
+        particles_[i].vel = vec;
     }
 
     //Find initial collision events
@@ -205,11 +183,11 @@ bool Simulation::init(void){
 
 void Simulation::run(void){
 
-    Time endTime = 10.0;
+    double endTime = 10.0;
     
     bool running = true;
     int nEvents = 0;
-    Time snapTime = 0.1;
+    double snapTime = 0.1;
     while(running){
         Event* nextEvent = eventManager_.getNextEvent();
         time_ = nextEvent->time_;

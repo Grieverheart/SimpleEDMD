@@ -5,21 +5,13 @@
 #include <random>
 #include "Vec.h"
 #include "EventManager.h"
+#include "Particle.h"
 
-//Start by creating a simple simulation class so we can start testing.
-//After sufficient testing, we can move to the entity-component system
-//and check how performance is affected. If the performance penalty is
-//not too significant, it will beneficial to keep the EC system.
-
-//NOTE: The plan is, for a particle i, to only schedule the next collision
-//and eventually, when the cell list is implemented, the next cell transfer.
-//check 'Algorithms for Particle-Field Simulations with Collisions'
+//NOTE:
+//1. Make Boundary Conditions a class so that we can change it easily.
+//2. Make a Collision Response class for different collision responses.
 
 //NOTE: Consider using smart pointers for passing events around
-
-//LOG: Next time, we want to implement a rayAABBIntersection function for
-//calculating when a sphere will cross the simulation box.
-
 class Simulation{
 public:
     Simulation(void):
@@ -33,20 +25,19 @@ public:
     void readConfig(const char* filename);
     void saveConfig(const char* filename);
 private:
-    bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t)const;
     CollisionEvent* getCollisionEvent(size_t pA, size_t pB)const;
     void runCollisionEvent(const CollisionEvent& event);
-    Vec3d applyPeriodicBC(const Vec3d& vec)const;
     void updateParticle(size_t pID);
+
+    Vec3d applyPeriodicBC(const Vec3d& vec)const;
 
     size_t nSpheres_;
     double boxSize_;
-    Time   time_;
-    std::vector<size_t> nCollisions_;
-    std::vector<double> radii_;
-    std::vector<Time>   times_;
-    std::vector<Vec3d>  positions_;
-    std::vector<Vec3d>  velocities_;
+    double time_;
+
+    std::vector<size_t>   nCollisions_;
+    std::vector<Particle> particles_;
+    std::vector<double>   radii_;
 
     EventManager eventManager_;
 
