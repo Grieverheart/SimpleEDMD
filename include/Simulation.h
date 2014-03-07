@@ -5,6 +5,7 @@
 #include <random>
 #include "Vec.h"
 #include "EventManager.h"
+#include "CellList.h"
 #include "Particle.h"
 
 //NOTE:
@@ -42,6 +43,7 @@ private:
     std::vector<double>   radii_;
 
     EventManager eventManager_;
+    CellList     cll_;
 
     std::mt19937 mtGen_;
 };

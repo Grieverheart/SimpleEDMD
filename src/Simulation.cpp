@@ -156,6 +156,11 @@ bool Simulation::init(void){
     //Initialize number of collisions to zero
     nCollisions_.resize(nSpheres_, 0);
 
+    //Initialize cell list
+    double max_radius = 0.0;
+    for(auto radius: radii_) max_radius = std::max(max_radius, radius);
+    cll_.init(nSpheres_, boxSize_, 2.0 * max_radius);
+
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
     for(size_t i = 0; i < nSpheres_; ++i){
@@ -167,6 +172,7 @@ bool Simulation::init(void){
         }
         vec = vec * (1.0 / sqrt(sum));
         particles_[i].vel = vec;
+        cll_.add(i, particles_[i].pos);
     }
 
     //Find initial collision events
