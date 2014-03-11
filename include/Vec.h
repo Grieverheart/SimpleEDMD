@@ -1,6 +1,8 @@
 #ifndef __VEC_H
 #define __VEC_H
 
+#include <cstddef>
+
 template<typename T>
 struct Vec3{
     Vec3(void):
