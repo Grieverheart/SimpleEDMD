@@ -5,7 +5,8 @@
 
 //Will eventually change this to a hashed string
 enum EventType{
-    EVT_COLLISION
+    EVT_COLLISION,
+    EVT_CELLCROSS
 };
 
 
@@ -35,6 +36,21 @@ struct CollisionEvent: public Event{
 
     size_t pA, pB;
     size_t nBCollisions;
+};
+
+struct CellCrossEvent: public Event{
+    CellCrossEvent(double time, size_t particleID, int cellOffset):
+        Event(time), pid(particleID), coffset(cellOffset)
+    {}
+
+    ~CellCrossEvent(void){}
+
+    EventType getType(void)const{
+        return EVT_CELLCROSS;
+    }
+
+    size_t pid;
+    int coffset;
 };
 
 struct EventPtrLess{

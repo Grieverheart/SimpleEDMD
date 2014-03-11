@@ -96,11 +96,19 @@ CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
     else return nullptr;
 }
 
-void Simulation::updateParticle(size_t pID){
-    if(particles_[pID].time != time_){
-        particles_[pID].pos += particles_[pID].vel * (time_ - particles_[pID].time);
-        //for(int i = 0; i < 3; ++i) positions_[pID][i] -= int(positions_[pID][i] * (2.0 / boxSize_) - 1.0) * boxSize_;
-        particles_[pID].time = time_;
+CellCrossEvent* Simulation::getCellCrossEvent(size_t pid)const{
+    int cidx = cll_.getIndex(pid);
+    double time(0.0);
+    Vec3d rpos = applyPeriodicBC(particles_[pid].pos - cll_.getCellOrigin(cidx));
+    int cellOffset = rayCellIntersection(cll_.getCellSize(), rpos, particles_[pid].vel, time);
+    return new CellCrossEvent(time + time_, pid, cellOffset);
+}
+
+void Simulation::updateParticle(size_t pid){
+    if(particles_[pid].time != time_){
+        particles_[pid].pos += particles_[pid].vel * (time_ - particles_[pid].time);
+        for(int i = 0; i < 3; ++i) particles_[pid].pos[i] -= int(particles_[pid].pos[i] * (2.0 / boxSize_) - 1.0) * boxSize_;
+        particles_[pid].time = time_;
     }
 }
 
@@ -133,18 +141,45 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     eventManager_.clear(pB);
 
     //Recalculate collision events
-    for(size_t n = 0; n < nSpheres_; ++n){
-        if(n != pA && n != pB){
-            updateParticle(n);
-            auto eventA = getCollisionEvent(pA, n);
-            auto eventB = getCollisionEvent(pB, n);
-            if(eventA) eventManager_.push(pA, eventA);
-            if(eventB) eventManager_.push(pB, eventB);
+    for(int cid: cll_.getNeighbourIterator(pA)){
+        for(size_t n: cll_.getCellIterator(cid)){
+            if(n != pA && n != pB){
+                updateParticle(n);
+                auto event = getCollisionEvent(pA, n);
+                if(event) eventManager_.push(pA, event);
+            }
         }
     }
+    for(int cid: cll_.getNeighbourIterator(pB)){
+        for(size_t n: cll_.getCellIterator(cid)){
+            if(n != pA && n != pB){
+                updateParticle(n);
+                auto event = getCollisionEvent(pB, n);
+                if(event) eventManager_.push(pB, event);
+            }
+        }
+    }
+    eventManager_.push(pA, getCellCrossEvent(pA));
+    eventManager_.push(pB, getCellCrossEvent(pB));
 
     eventManager_.update(pA);
     eventManager_.update(pB);
+}
+
+void Simulation::runCellCrossEvent(const CellCrossEvent& event){
+    size_t pid  = event.pid;
+    int coffset = event.coffset;
+    cll_.move(pid, coffset);
+    updateParticle(pid);
+    for(int cid: cll_.getDirNeighbourIterator(pid, coffset)){
+        for(size_t n: cll_.getCellIterator(cid)){
+            updateParticle(n);
+            auto event = getCollisionEvent(pid, n);
+            if(event) eventManager_.push(pid, event);
+        }
+    }
+    eventManager_.push(pid, getCellCrossEvent(pid));
+    eventManager_.update(pid);
 }
 
 bool Simulation::init(void){
@@ -177,10 +212,16 @@ bool Simulation::init(void){
 
     //Find initial collision events
     for(size_t i = 0; i < nSpheres_; ++i){
-        for(size_t j = i + 1; j < nSpheres_; ++j){
-            auto event = getCollisionEvent(i, j);
-            if(event) eventManager_.push(i, event);
+        for(int cid: cll_.getNeighbourIterator(i)){
+            for(size_t j: cll_.getCellIterator(cid)){
+                if(i != j){
+                    auto event = getCollisionEvent(i, j);
+                    if(event) eventManager_.push(i, event);
+                }
+            }
         }
+        auto event = getCellCrossEvent(i);
+        eventManager_.push(i, event);
     }
     eventManager_.init();
 
@@ -204,6 +245,12 @@ void Simulation::run(void){
                 auto collisionEvent = static_cast<CollisionEvent*>(nextEvent);
                 runCollisionEvent(*collisionEvent);
                 delete collisionEvent;
+            }
+            break;
+        case EVT_CELLCROSS:{
+                auto cellEvent = static_cast<CellCrossEvent*>(nextEvent);
+                runCellCrossEvent(*cellEvent);
+                delete cellEvent;
             }
             break;
         default:

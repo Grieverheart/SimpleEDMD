@@ -2,16 +2,27 @@
 #define __CELL_LIST_H
 
 #include <cstddef>
-#include <cstdio>
 #include "Vec.h"
 
 #define CLL_EMPTY -1
 
-//NOTE: At some point we should make the box a 3x3 matrix
+constexpr bool isDirNeighbour(int n, int dir){
+    return (dir / 2 == 0)? ((n % 3 - 1) * (2 * (dir % 2) - 1) > 0):
+           (dir / 2 == 1)? (((n / 3) % 3 - 1) * (2 * (dir % 2) - 1) > 0):
+                           (((n / 9) - 1) * (2 * (dir % 2) - 1) > 0);
+}
 
+//NOTE: At some point we should make the box a 3x3 matrix
 class CellList{
 public:
-    CellList(void){}
+    CellList(void){
+        for(int i = 0; i < 6; ++i){
+            int nids = 0;
+            for(int n = 0; n < 27; ++n){
+                if(isDirNeighbour(n, i)) dirNeighbourIds_[9 * i + nids++] = n;
+            }
+        }
+    }
 
     ~CellList(void){
         delete[] cell_;
@@ -37,11 +48,8 @@ public:
         for(int i = 0; i < nPart_; ++i) linkedList_[i] = CLL_EMPTY;
 
         for(int n = 0; n < nCellsTot; ++n){
-            int cellIndices[] = {
-                n % nCells_,
-               (n / nCells_) % nCells_,
-                n / (nCells_ * nCells_)
-            };
+            int cellIndices[3];
+            indexToIndices(n, cellIndices);
             for(int i = 0; i < 27; ++i){
                 int offset[] = {i % 3 - 1, (i / 3) % 3 - 1, i / 9 - 1};
                 int cell_idx =  (nCells_ + cellIndices[0] + offset[0]) % nCells_ +
@@ -84,74 +92,184 @@ public:
         return cidx;
     }
 
+    int move(int pid, int coffset){
+        int cidx_old = pCellIds_[pid];
+        int cellIndices[3];
+        indexToIndices(cidx_old, cellIndices);
+        int dir = coffset / 2;
+        cellIndices[dir] = (cellIndices[dir] + nCells_ + 2 * (coffset % 2) - 1) % nCells_;
+        int cidx = indicesToIndex(cellIndices);
+
+        if(cell_[cidx_old] == pid) cell_[cidx_old] = linkedList_[pid];
+        else{
+            for(int ci = cell_[cidx_old]; ci != CLL_EMPTY; ci = linkedList_[ci]){
+                if(linkedList_[ci] == pid){
+                    linkedList_[ci] = linkedList_[pid];
+                    break;
+                }
+            }
+        }
+
+        linkedList_[pid] = cell_[cidx];
+        cell_[cidx] = pid;
+        pCellIds_[pid] = cidx;
+
+        return cidx;
+    }
+
     int getIndex(int pid)const{
         return pCellIds_[pid];
     }
 
-    class Neighbours{
+    Vec3d getCellOrigin(int cidx)const{
+        Vec3d cellIndices = Vec3d(
+            cidx % nCells_,
+           (cidx / nCells_) % nCells_,
+            cidx / (nCells_ * nCells_)
+        );
+        return cellIndices * cellSize_;
+    }
+
+    Vec3d getCellSize(void)const{
+        return Vec3d(cellSize_);
+    }
+
+    class NeighbourIterator{
     public:
-        Neighbours(const CellList& parent, int pid):
-            neighIds_(&parent.cellNeighbours_[27 * parent.pCellIds_[pid]]),
-            cell_(parent.cell_), linkedList_(parent.linkedList_),
-            curr_nidx(0), curr_pid(cell_[neighIds_[curr_nidx]])
+        NeighbourIterator(const CellList& parent, int pid):
+            cellNeighbours_(&parent.cellNeighbours_[27 * parent.pCellIds_[pid]]),
+            nidx_(0)
         {}
 
-        Neighbours begin(void)const{
-            Neighbours ret = *this;
-            ret.curr_nidx = 0;
-            ret.curr_pid  = cell_[neighIds_[0]];
+        NeighbourIterator begin(void){
+            NeighbourIterator ret = *this;
+            ret.nidx_ = 0;
             return ret;
         }
 
-        Neighbours end(void)const{
-            Neighbours ret = *this;
-            ret.curr_nidx = 27;
+        NeighbourIterator end(void){
+            NeighbourIterator ret = *this;
+            ret.nidx_ = 27;
             return ret;
         }
 
-        bool operator<(const Neighbours& other)const{
-            return curr_nidx < other.curr_nidx;
+        bool operator!=(const NeighbourIterator& other){
+            return nidx_ != other.nidx_;
         }
 
-        bool operator>(const Neighbours& other)const{
-            return curr_nidx > other.curr_nidx;
+        NeighbourIterator& operator++(void){
+            ++nidx_;
+            return *this;
         }
 
-        bool operator!=(const Neighbours& other)const{
-            return curr_nidx != other.curr_nidx;
+        int operator*(void)const{
+            return cellNeighbours_[nidx_];
+        }
+    private:
+        const int* cellNeighbours_;
+        int nidx_;
+    };
+
+    class DirectionalNeighbourIterator{
+    public:
+        DirectionalNeighbourIterator(const CellList& parent, int pid, int dir):
+            dirNeighbourIds_(&parent.dirNeighbourIds_[9 * dir]),
+            cellNeighbours_(&parent.cellNeighbours_[27 * parent.pCellIds_[pid]]),
+            nidx_(0)
+        {}
+
+        DirectionalNeighbourIterator begin(void){
+            DirectionalNeighbourIterator ret = *this;
+            ret.nidx_ = 0;
+            return ret;
         }
 
-        Neighbours& operator++(void){
-            if(linkedList_[curr_pid] == CLL_EMPTY){
-                ++curr_nidx;
-                if(curr_nidx < 27) curr_pid = cell_[neighIds_[curr_nidx]];
-            }
-            else curr_pid = linkedList_[curr_pid];
+        DirectionalNeighbourIterator end(void){
+            DirectionalNeighbourIterator ret = *this;
+            ret.nidx_ = 9;
+            return ret;
+        }
 
+        bool operator!=(const DirectionalNeighbourIterator& other)const{
+            return nidx_ != other.nidx_;
+        }
+
+        DirectionalNeighbourIterator& operator++(void){
+            ++nidx_;
+            return *this;
+        }
+
+        int operator*(void)const{
+            return cellNeighbours_[dirNeighbourIds_[nidx_]];
+        }
+    private:
+        const int* dirNeighbourIds_;
+        const int* cellNeighbours_;
+        int nidx_;
+    };
+
+    class CellIterator{
+    public:
+        CellIterator(const CellList& parent, int cidx):
+            first_pid(parent.cell_[cidx]), curr_pid(first_pid),
+            linkedList_(parent.linkedList_)
+        {}
+
+        CellIterator begin(void){
+            CellIterator ret = *this;
+            ret.curr_pid = first_pid;
+            return ret;
+        }
+
+        CellIterator end(void){
+            CellIterator ret = *this;
+            ret.curr_pid = CLL_EMPTY;
+            return ret;
+        }
+
+        bool operator!=(const CellIterator& other)const{
+            return curr_pid != other.curr_pid;
+        }
+
+        CellIterator& operator++(void){
+            curr_pid = linkedList_[curr_pid];
             return *this;
         }
 
         int operator*(void)const{
             return curr_pid;
         }
-
     private:
-        const int* neighIds_;
-        const int* cell_;
-        const int* linkedList_;
-        int curr_nidx;
+        int first_pid;
         int curr_pid;
+        const int* linkedList_;
     };
 
-    Neighbours getNeighbours(int pid)const{
-        return Neighbours(*this, pid);
+    NeighbourIterator getNeighbourIterator(int pid)const{
+        return NeighbourIterator(*this, pid);
+    }
+
+    DirectionalNeighbourIterator getDirNeighbourIterator(int pid, int dir)const{
+        return DirectionalNeighbourIterator(*this, pid, dir);
+    }
+
+    CellIterator getCellIterator(int cid)const{
+        return CellIterator(*this, cid);
     }
 
 private:
+    int indicesToIndex(const int (&indices)[3])const{
+        return indices[0] + (indices[1] + indices[2] * nCells_) * nCells_;
+    }
+    void indexToIndices(int index, int (&indices)[3])const{
+        indices[0] =  index % nCells_;
+        indices[1] = (index / nCells_) % nCells_;
+        indices[2] =  index / (nCells_ * nCells_);
+    }
     int cellIndex(const Vec3d& pos)const{
         int cellIndices[3];
         for(int i = 0; i < 3; ++i) cellIndices[i] = int(pos[i] / cellSize_);
-        return cellIndices[0] + (cellIndices[1] + cellIndices[2] * nCells_) * nCells_;
+        return indicesToIndex(cellIndices);
     }
 
 private:
@@ -161,6 +279,7 @@ private:
     int*   linkedList_;
     int*   pCellIds_;
     int*   cellNeighbours_;
+    int    dirNeighbourIds_[54];
     double cellSize_;       //Cell size in each dimension
 };
 

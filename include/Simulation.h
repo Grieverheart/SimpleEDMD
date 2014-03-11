@@ -29,8 +29,10 @@ public:
     void saveConfig(const char* filename);
 private:
     CollisionEvent* getCollisionEvent(size_t pA, size_t pB)const;
+    CellCrossEvent* getCellCrossEvent(size_t pid)const;
     void runCollisionEvent(const CollisionEvent& event);
-    void updateParticle(size_t pID);
+    void runCellCrossEvent(const CellCrossEvent& event);
+    void updateParticle(size_t pid);
 
     Vec3d applyPeriodicBC(const Vec3d& vec)const;
 
