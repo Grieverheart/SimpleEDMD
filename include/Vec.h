@@ -5,9 +5,7 @@
 
 template<typename T>
 struct Vec3{
-    Vec3(void):
-        x(0.0), y(0.0), z(0.0)
-    {}
+    Vec3(void){}
 
     Vec3(T xx, T yy, T zz):
         x(xx), y(yy), z(zz)
@@ -49,7 +47,7 @@ struct Vec3{
 };
 
 template<class T>
-T dot(const Vec3<T>& a, const Vec3<T>& b){
+inline T dot(const Vec3<T>& a, const Vec3<T>& b){
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 

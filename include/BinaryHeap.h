@@ -2,18 +2,15 @@
 #define __BINARY_HEAP_H
 
 #include <vector>
+#include <utility>
 
 //FUTURE: Add iterators for iterating over tree elements
 
 template<class T, class Compare>
 class BinaryHeap{
-};
-
-template<class T, class Compare>
-class BinaryHeap<T*, Compare>{
 public:
     BinaryHeap(void){
-        data_.push_back(nullptr);
+        data_.push_back(T());
     }
 
     ~BinaryHeap(void){
@@ -23,42 +20,37 @@ public:
     BinaryHeap(const BinaryHeap& other) = delete;
 
     BinaryHeap(BinaryHeap&& other):
-        data_(other.data_)
-    {
-        other.data_.clear();
-    }
+        data_(std::move(other.data_))
+    {}
 
     void clear(void){
-        for(auto element: data_){
-            delete element;
-        }
         data_.clear();
-        data_.push_back(nullptr);
+        data_.push_back(T());
     }
 
     bool empty(void)const{
         return (data_.size() < 2);
     }
 
-    void push(T* val){
+    void push(const T& val){
         data_.push_back(val);
 
         int val_index    = data_.size() - 1;
         int parent_index = val_index >> 1;
         while(parent_index > 0 && comp_(data_[val_index], data_[parent_index])){
-            swap(val_index, parent_index);
+            std::swap(data_[val_index], data_[parent_index]);
             val_index = parent_index;
             parent_index >>= 1;
         }
     }
 
-    const T* top(void)const{
+    const T& top(void)const{
         return data_[1];
     }
 
-    T* pop(void){
-        T* ret_val = data_[1];
-        data_[1]   = data_.back();
+    T pop(void){
+        T ret_val = data_[1];
+        data_[1]  = data_.back();
 
         int min_index = 1;
         int stop = data_.size() >> 1;
@@ -66,29 +58,22 @@ public:
             int left  = i << 1;
             int right = (i << 1) + 1;
             min_index = comp_(data_[left], data_[right])? left: right;
-            if(comp_(data_[min_index], data_[i])) swap(min_index, i);
+            if(comp_(data_[min_index], data_[i])) std::swap(data_[min_index], data_[i]);
             else break;
         }
 
         data_.erase(data_.end() - 1);
 
-        return ret_val;
+        return std::move(ret_val);
     }
 
 private:
-    void swap(int index_a, int index_b){
-        T* temp = data_[index_a];
-        data_[index_a] = data_[index_b];
-        data_[index_b] = temp;
-    }
-
-private:
-    std::vector<T*> data_;
+    std::vector<T> data_;
     static Compare comp_;
 };
 
 template<class T, class Compare>
-Compare BinaryHeap<T*, Compare>::comp_ = Compare();
+Compare BinaryHeap<T, Compare>::comp_ = Compare();
 
 
 #endif

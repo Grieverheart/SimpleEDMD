@@ -3,59 +3,35 @@
 
 #include <cstddef>
 
-//Will eventually change this to a hashed string
-enum EventType{
-    EVT_COLLISION,
-    EVT_CELLCROSS
+//NOTE: Consider using boost::variant, it should give better performance
+enum ParticleEventType{
+    PE_NONE = 0,
+    PE_COLLISION,
+    PE_CELLCROSS
 };
 
-
-//NOTE: Consider using boost::variant, it should give better performance
-class Event{
+class ParticleEvent{
 public:
-    Event(double time):
-        time_(time)
+    ParticleEvent(void):
+        id_(0)
     {}
-    virtual ~Event(void) = 0;
-    virtual EventType getType(void)const = 0;
+    ParticleEvent(double time, int pid, int id, int optional = -1):
+        time_(time), pid_(pid), id_(id), optional_(optional)
+    {}
+    ~ParticleEvent(void){};
+
+    ParticleEventType getType(int npart){
+        return (id_ == 0)? PE_NONE: (id_ >= 1 && id_ < npart + 1)? PE_COLLISION: PE_CELLCROSS;
+    }
 
     double time_;
-};
-inline Event::~Event(void){}
-
-struct CollisionEvent: public Event{
-    CollisionEvent(double time, size_t particleA, size_t particleB, size_t numCollisionsB):
-        Event(time), pA(particleA), pB(particleB), nBCollisions(numCollisionsB)
-    {}
-
-    ~CollisionEvent(void){}
-
-    EventType getType(void)const{
-        return EVT_COLLISION;
-    }
-
-    size_t pA, pB;
-    size_t nBCollisions;
+    int pid_;
+    int id_, optional_;
 };
 
-struct CellCrossEvent: public Event{
-    CellCrossEvent(double time, size_t particleID, int cellOffset):
-        Event(time), pid(particleID), coffset(cellOffset)
-    {}
-
-    ~CellCrossEvent(void){}
-
-    EventType getType(void)const{
-        return EVT_CELLCROSS;
-    }
-
-    size_t pid;
-    int coffset;
-};
-
-struct EventPtrLess{
-    bool operator()(Event* a, Event* b)const{
-        return a->time_ < b->time_;
+struct ParticleEventLess{
+    bool operator()(const ParticleEvent& a, const ParticleEvent& b)const{
+        return a.time_ < b.time_;
     }
 };
 

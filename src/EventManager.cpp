@@ -33,7 +33,7 @@ void EventManager::init(void){
         for(size_t i = 0; i < events_.size(); ++i){
             if(events_[i].empty()) continue;
 
-            double time = events_[i].top()->time_;
+            double time = events_[i].top().time_;
             double temp = tmin[0];
             tmin[0] = std::min(tmin[0], time);
             if(tmin[0] != temp) tmin[1] = temp;
@@ -65,7 +65,7 @@ bool EventManager::empty(size_t pID)const{
     return events_[pID].empty();
 }
 
-void EventManager::push(size_t pID, Event* event){
+void EventManager::push(size_t pID, const ParticleEvent& event){
     events_[pID].push(event);
 }
 
@@ -77,8 +77,8 @@ void EventManager::update(size_t pID){
 
 void EventManager::insertInEventQ(size_t eRef){
     isInserted_[eRef] = true;
-    const Event* event = events_[eRef].top();
-    size_t index = (size_t)(scaleFactor_ * event->time_ - baseIndex_); 
+    const ParticleEvent& event = events_[eRef].top();
+    size_t index = (size_t)(scaleFactor_ * event.time_ - baseIndex_); 
 
     if(index > llSize_ - 1){
         index -= llSize_;
@@ -129,7 +129,7 @@ void EventManager::deleteFromEventQ(size_t eRef){
     }
 }
 
-Event* EventManager::getNextEvent(void){
+ParticleEvent EventManager::getNextEvent(void){
     while(nCBTEvents_ == 0){
         ++currentIndex_;
         if(currentIndex_ == llSize_){
@@ -157,7 +157,7 @@ void EventManager::cbtUpdate(EventRef eRef){
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
 
-        nodes_[father] = (events_[leftNode].top()->time_ < events_[rightNode].top()->time_)? leftNode : rightNode;
+        nodes_[father] = (events_[leftNode].top().time_ < events_[rightNode].top().time_)? leftNode : rightNode;
     }
 
     for( ; father > 0; father /= 2){
@@ -166,7 +166,7 @@ void EventManager::cbtUpdate(EventRef eRef){
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
 
-        nodes_[father] = (events_[leftNode].top()->time_ < events_[rightNode].top()->time_)? leftNode : rightNode;
+        nodes_[father] = (events_[leftNode].top().time_ < events_[rightNode].top().time_)? leftNode : rightNode;
 
         if(nodes_[father] == oldWinner) return;
     }

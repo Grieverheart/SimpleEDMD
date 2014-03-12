@@ -26,7 +26,7 @@ void Simulation::readConfig(const char* filename){
         if(i == 1) nSpheres_ = atoi(line);
         else if(i == 2) boxSize_ = atof(line);
         else if(i > 2){
-            Vec3d coords(0.0);
+            Vec3d coords;
             for(t1 = strtok(line,delim); t1 != NULL; t1 = strtok(NULL, delim)){
                 if(u<3)	coords[u] = atof(t1);
                 else radii_.push_back(atof(t1));
@@ -44,9 +44,9 @@ void Simulation::readConfig(const char* filename){
 
 void Simulation::saveConfig(const char* filename){
     FILE *fp = fopen(filename, "w");
-    fprintf(fp, "%lu\n%f\n", nSpheres_, boxSize_);
+    fprintf(fp, "%d\n%f\n", nSpheres_, boxSize_);
 
-    for(size_t i = 0; i < nSpheres_; ++i){
+    for(int i = 0; i < nSpheres_; ++i){
         updateParticle(i);
         fprintf(fp, "%f\t%f\t%f\t", particles_[i].pos.x, particles_[i].pos.y, particles_[i].pos.z);
         fprintf(fp, "%f\n", radii_[i]);
@@ -55,69 +55,81 @@ void Simulation::saveConfig(const char* filename){
 }
 
 //Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-//    Vec3d retVec(0.0);
-//    for(size_t i = 0; i < 3; ++i) retVec[i] = remainder(vec[i], boxSize_);
+//    Vec3d retVec;
+//    for(int i = 0; i < 3; ++i) retVec[i] = remainder(vec[i], boxSize_);
 //    return retVec;
 //}
 
 //// Most efficient but vec is required to be -B < vec < B
 //Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-//    Vec3d retVec(0.0);
-//    for(size_t i = 0; i < 3; ++i){
-//        retVec[i] = vec[i] - int(vec[i] * (2.0 / boxSize_)) * boxSize_;
-//    }
+//    Vec3d retVec;
+//    retVec.x = vec.x - int(vec.x * (2.0 / boxSize_)) * boxSize_;
+//    retVec.y = vec.y - int(vec.y * (2.0 / boxSize_)) * boxSize_;
+//    retVec.z = vec.z - int(vec.z * (2.0 / boxSize_)) * boxSize_;
 //    return retVec;
 //}
 
 // More efficient but vec is required to be -1.5B < vec < 1.5B
 Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-    Vec3d retVec(0.0);
+    Vec3d retVec;
     static double a = 2.0 / boxSize_;
-    for(size_t i = 0; i < 3; ++i){
-        int k = vec[i] * a;
-        retVec[i] = vec[i] - k * boxSize_;
-        k = retVec[i] * a;
-        retVec[i] = retVec[i] - k * boxSize_;
-    }
+
+    int k = vec.x * a;
+    retVec.x = vec.x - k * boxSize_;
+    k = retVec.x * a;
+    retVec.x = retVec.x - k * boxSize_;
+
+    int l = vec.y * a;
+    retVec.y = vec.y - l * boxSize_;
+    l = retVec.y * a;
+    retVec.y = retVec.y - l * boxSize_;
+
+    int m = vec.z * a;
+    retVec.z = vec.z - m * boxSize_;
+    m = retVec.z * a;
+    retVec.z = retVec.z - m * boxSize_;
+
     return retVec;
 }
 
-CollisionEvent* Simulation::getCollisionEvent(size_t pA, size_t pB)const{
+ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
     const Particle& partA = particles_[pA];
     const Particle& partB = particles_[pB];
 
-    Vec3d dist   = applyPeriodicBC(partB.pos - partA.pos);
+    Vec3d dist   = applyPeriodicBC(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
     Vec3d relVel = partA.vel - partB.vel;
 
     double time(0.0);
     bool isCollision = raySphereIntersection(radii_[pA] + radii_[pB], dist, relVel, time);
 
-    if(isCollision) return new CollisionEvent(time + time_, pA, pB, nCollisions_[pB]);
-    else return nullptr;
+    if(isCollision) return ParticleEvent(time + time_, pA, pB + 1, nCollisions_[pB]);
+    else return ParticleEvent();
 }
 
-CellCrossEvent* Simulation::getCellCrossEvent(size_t pid)const{
+ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     int cidx = cll_.getIndex(pid);
     double time(0.0);
     Vec3d rpos = applyPeriodicBC(particles_[pid].pos - cll_.getCellOrigin(cidx));
     int cellOffset = rayCellIntersection(cll_.getCellSize(), rpos, particles_[pid].vel, time);
-    return new CellCrossEvent(time + time_, pid, cellOffset);
+    return ParticleEvent(time + time_, pid, cellOffset + nSpheres_ + 1);
 }
 
-void Simulation::updateParticle(size_t pid){
+void Simulation::updateParticle(int pid){
     if(particles_[pid].time != time_){
         particles_[pid].pos += particles_[pid].vel * (time_ - particles_[pid].time);
-        for(int i = 0; i < 3; ++i) particles_[pid].pos[i] -= int(particles_[pid].pos[i] * (2.0 / boxSize_) - 1.0) * boxSize_;
+        particles_[pid].pos.x -= int(particles_[pid].pos.x * (2.0 / boxSize_) - 1.0) * boxSize_;
+        particles_[pid].pos.y -= int(particles_[pid].pos.y * (2.0 / boxSize_) - 1.0) * boxSize_;
+        particles_[pid].pos.z -= int(particles_[pid].pos.z * (2.0 / boxSize_) - 1.0) * boxSize_;
         particles_[pid].time = time_;
     }
 }
 
 //NOTE: For simplicity, for now we assume equal mass spheres
-void Simulation::runCollisionEvent(const CollisionEvent& event){
-    size_t pA = event.pA;
-    size_t pB = event.pB;
+void Simulation::runCollisionEvent(const ParticleEvent& event){
+    int pA = event.pid_;
+    int pB = event.id_ - 1;
 
-    if(nCollisions_[pB] != event.nBCollisions){
+    if(nCollisions_[pB] != event.optional_){
         eventManager_.update(pA);
         return;
     }
@@ -142,20 +154,20 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
 
     //Recalculate collision events
     for(int cid: cll_.getNeighbourIterator(pA)){
-        for(size_t n: cll_.getCellIterator(cid)){
+        for(int n: cll_.getCellIterator(cid)){
             if(n != pA && n != pB){
-                updateParticle(n);
+                //updateParticle(n);
                 auto event = getCollisionEvent(pA, n);
-                if(event) eventManager_.push(pA, event);
+                if(event.id_ != 0) eventManager_.push(pA, event);
             }
         }
     }
     for(int cid: cll_.getNeighbourIterator(pB)){
-        for(size_t n: cll_.getCellIterator(cid)){
+        for(int n: cll_.getCellIterator(cid)){
             if(n != pA && n != pB){
-                updateParticle(n);
+                //updateParticle(n);
                 auto event = getCollisionEvent(pB, n);
-                if(event) eventManager_.push(pB, event);
+                if(event.id_ != 0) eventManager_.push(pB, event);
             }
         }
     }
@@ -166,16 +178,16 @@ void Simulation::runCollisionEvent(const CollisionEvent& event){
     eventManager_.update(pB);
 }
 
-void Simulation::runCellCrossEvent(const CellCrossEvent& event){
-    size_t pid  = event.pid;
-    int coffset = event.coffset;
+void Simulation::runCellCrossEvent(const ParticleEvent& event){
+    int pid     = event.pid_;
+    int coffset = event.id_ - nSpheres_ - 1;
     cll_.move(pid, coffset);
     updateParticle(pid);
     for(int cid: cll_.getDirNeighbourIterator(pid, coffset)){
-        for(size_t n: cll_.getCellIterator(cid)){
-            updateParticle(n);
+        for(int n: cll_.getCellIterator(cid)){
+            //updateParticle(n);
             auto event = getCollisionEvent(pid, n);
-            if(event) eventManager_.push(pid, event);
+            if(event.id_ != 0) eventManager_.push(pid, event);
         }
     }
     eventManager_.push(pid, getCellCrossEvent(pid));
@@ -185,8 +197,6 @@ void Simulation::runCellCrossEvent(const CellCrossEvent& event){
 bool Simulation::init(void){
     if(nSpheres_) eventManager_.resize(nSpheres_);
     else return false;
-
-    particles_.resize(nSpheres_);
 
     //Initialize number of collisions to zero
     nCollisions_.resize(nSpheres_, 0);
@@ -198,10 +208,10 @@ bool Simulation::init(void){
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
-    for(size_t i = 0; i < nSpheres_; ++i){
-        Vec3d vec(0.0);
+    for(int i = 0; i < nSpheres_; ++i){
+        Vec3d vec;
         double sum = 0.0;
-        for(size_t j = 0; j < 3; ++j){
+        for(int j = 0; j < 3; ++j){
             vec[j] = dist(mtGen_);
             sum += vec[j] * vec[j];
         }
@@ -211,12 +221,12 @@ bool Simulation::init(void){
     }
 
     //Find initial collision events
-    for(size_t i = 0; i < nSpheres_; ++i){
+    for(int i = 0; i < nSpheres_; ++i){
         for(int cid: cll_.getNeighbourIterator(i)){
-            for(size_t j: cll_.getCellIterator(cid)){
+            for(int j: cll_.getCellIterator(cid)){
                 if(i != j){
                     auto event = getCollisionEvent(i, j);
-                    if(event) eventManager_.push(i, event);
+                    if(event.id_ != 0) eventManager_.push(i, event);
                 }
             }
         }
@@ -230,40 +240,34 @@ bool Simulation::init(void){
 
 void Simulation::run(void){
 
-    double endTime = 10.0;
+    double endTime = 100.0;
     
     bool running = true;
     int nEvents = 0;
-    double snapTime = 0.1;
+    double snapTime = 100.0;
     while(running){
-        Event* nextEvent = eventManager_.getNextEvent();
-        time_ = nextEvent->time_;
+        ParticleEvent nextEvent = eventManager_.getNextEvent();
+        time_ = nextEvent.time_;
         //std::cout << time_ << std::endl;
 
-        switch(nextEvent->getType()){
-        case EVT_COLLISION:{
-                auto collisionEvent = static_cast<CollisionEvent*>(nextEvent);
-                runCollisionEvent(*collisionEvent);
-                delete collisionEvent;
-            }
+        switch(nextEvent.getType(nSpheres_)){
+        case PE_COLLISION:
+            runCollisionEvent(nextEvent);
             break;
-        case EVT_CELLCROSS:{
-                auto cellEvent = static_cast<CellCrossEvent*>(nextEvent);
-                runCellCrossEvent(*cellEvent);
-                delete cellEvent;
-            }
+        case PE_CELLCROSS:
+            runCellCrossEvent(nextEvent);
             break;
         default:
             running = false;
             break;
         }
-        if(time_ > endTime) break;
         if(time_ >= snapTime){
             char buff[64];
             sprintf(buff, "Data/file%06d.dat", ++nEvents);
             saveConfig(buff);
-            snapTime += 0.1;
+            snapTime += 1.0;
         }
+        if(time_ > endTime) break;
     }
 }
 

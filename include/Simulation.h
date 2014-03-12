@@ -28,19 +28,19 @@ public:
     void readConfig(const char* filename);
     void saveConfig(const char* filename);
 private:
-    CollisionEvent* getCollisionEvent(size_t pA, size_t pB)const;
-    CellCrossEvent* getCellCrossEvent(size_t pid)const;
-    void runCollisionEvent(const CollisionEvent& event);
-    void runCellCrossEvent(const CellCrossEvent& event);
-    void updateParticle(size_t pid);
+    ParticleEvent getCollisionEvent(int pA, int pB)const;
+    ParticleEvent getCellCrossEvent(int pid)const;
+    void runCollisionEvent(const ParticleEvent& event);
+    void runCellCrossEvent(const ParticleEvent& event);
+    void updateParticle(int pid);
 
     Vec3d applyPeriodicBC(const Vec3d& vec)const;
 
-    size_t nSpheres_;
+    int    nSpheres_;
     double boxSize_;
     double time_;
 
-    std::vector<size_t>   nCollisions_;
+    std::vector<int>      nCollisions_;
     std::vector<Particle> particles_;
     std::vector<double>   radii_;
 
