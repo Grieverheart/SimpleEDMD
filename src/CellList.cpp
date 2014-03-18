@@ -1,22 +1,8 @@
 #include "include/CellList.h"
 
-namespace{
-    constexpr bool isDirNeighbour(int n, int dir){
-        return (dir / 2 == 0)? ((n % 3 - 1) * (2 * (dir % 2) - 1) > 0):
-               (dir / 2 == 1)? (((n / 3) % 3 - 1) * (2 * (dir % 2) - 1) > 0):
-                               (((n / 9) - 1) * (2 * (dir % 2) - 1) > 0);
-    }
-}
-
 //NOTE: At some point we should make the box a 3x3 matrix
-CellList::CellList(void){
-    for(int i = 0; i < 6; ++i){
-        int nids = 0;
-        for(int n = 0; n < 27; ++n){
-            if(isDirNeighbour(n, i)) dirNeighbourIds_[9 * i + nids++] = n;
-        }
-    }
-}
+
+CellList::CellList(void){}
 
 CellList::~CellList(void){
     delete[] cell_;

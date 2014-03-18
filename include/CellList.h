@@ -80,12 +80,46 @@ private:
     int nidx_;
 };
 
+
+//Compile-time Directional Neighbour index generator
+namespace{
+    constexpr bool isDirNeighbour(int n){
+        return ((n / 27) / 2 == 0)?  (((n % 27) % 3 - 1) * (2 * ((n / 27) % 2) - 1) > 0):
+               ((n / 27) / 2 == 1)? ((((n % 27) / 3) % 3 - 1) * (2 * ((n / 27) % 2) - 1) > 0):
+                                    ((((n % 27) / 9) - 1) * (2 * ((n / 27) % 2) - 1) > 0);
+    }
+
+    //Decides to keep N % 27 or not
+    template<bool B, int N, int...S>
+    struct dummy;
+
+    template<int N, int...S>
+    struct gen_nums: dummy<isDirNeighbour(N - 1), (N - 1), S...>{
+        static_assert(N <= 162, "");
+    };
+
+    template<int...S>
+    struct gen_nums<0, S...>{
+        static constexpr int value[] = {S...};
+    };
+
+    template<int...S>
+    constexpr int gen_nums<0, S...>::value[];
+
+    template<int N, int...S>
+    struct dummy<false, N, S...>: gen_nums<N, S...>{};
+
+    template<int N, int...S>
+    struct dummy<true, N, S...>: gen_nums<N, N % 27, S...>{};
+
+    struct DirNeighbours: gen_nums<27 * 6>{};
+}
+
 class CellList::DirectionalNeighbourIterator{
 public:
     DirectionalNeighbourIterator(const CellList& parent, int pid, int dir):
-        dirNeighbourIds_(&parent.dirNeighbourIds_[9 * dir]),
         cellNeighbours_(&parent.cellNeighbours_[27 * parent.pCellIds_[pid]]),
-        nidx_(0)
+        nidx_(0), dir_(dir)
     {}
 
     DirectionalNeighbourIterator begin(void){
@@ -110,12 +144,11 @@ public:
     }
 
     int operator*(void)const{
-        return cellNeighbours_[dirNeighbourIds_[nidx_]];
+        return cellNeighbours_[DirNeighbours::value[9 * dir_ + nidx_]];
     }
 private:
-    const int* dirNeighbourIds_;
     const int* cellNeighbours_;
-    int nidx_;
+    int nidx_, dir_;
 };
 
 class CellList::CellIterator{
