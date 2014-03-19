@@ -8,6 +8,7 @@ struct Particle{
         time(0.0)
     {}
     double time;
+    double radius;
     Vec3d  pos;
     Vec3d  vel;
 };

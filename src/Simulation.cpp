@@ -1,106 +1,30 @@
 #include <cstdio>
-#include <cstring>
-#include <cstdlib>
 #include <cmath>
-#include <iostream>
 #include "include/Simulation.h"
 #include "include/EventManager.h"
 #include "include/ray_intersections.h"
 
-void Simulation::readConfig(const char* filename){
-	char line[128];
-    const char* delim = "\t";
-	char *t1 = NULL;
-	int i = 1,u = 0;
-	
-	FILE *fp;
-	fp = fopen(filename,"r");
-	if(!fp){
-		printf("Couldn't open file %s\n",filename);
-		return;
-	}
-	
-	while(fgets(line,sizeof(line),fp) != NULL){
-		u=0;
-		if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; // Remove the niewline from the end of the string
-        if(i == 1) nSpheres_ = atoi(line);
-        else if(i == 2) boxSize_ = atof(line);
-        else if(i > 2){
-            Vec3d coords;
-            for(t1 = strtok(line,delim); t1 != NULL; t1 = strtok(NULL, delim)){
-                if(u<3)	coords[u] = atof(t1);
-                else radii_.push_back(atof(t1));
-                u++;
-            }
-            Particle part;
-            part.pos = coords;
-            particles_.emplace_back(part);
-		}
-		i++;
-	}
-	free(t1);
-	fclose(fp);
-}
-
 void Simulation::saveConfig(const char* filename){
     FILE *fp = fopen(filename, "w");
-    fprintf(fp, "%d\n%f\n", nSpheres_, boxSize_);
+    fprintf(fp, "%d\n%f\n", nSpheres_, pbc_.getSize());
 
     for(int i = 0; i < nSpheres_; ++i){
         updateParticle(i);
         fprintf(fp, "%f\t%f\t%f\t", particles_[i].pos.x, particles_[i].pos.y, particles_[i].pos.z);
-        fprintf(fp, "%f\n", radii_[i]);
+        fprintf(fp, "%f\n", particles_[i].radius);
     }
     fclose(fp);
-}
-
-//Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-//    Vec3d retVec;
-//    for(int i = 0; i < 3; ++i) retVec[i] = remainder(vec[i], boxSize_);
-//    return retVec;
-//}
-
-//// Most efficient but vec is required to be -B < vec < B
-//Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-//    Vec3d retVec;
-//    retVec.x = vec.x - int(vec.x * (2.0 / boxSize_)) * boxSize_;
-//    retVec.y = vec.y - int(vec.y * (2.0 / boxSize_)) * boxSize_;
-//    retVec.z = vec.z - int(vec.z * (2.0 / boxSize_)) * boxSize_;
-//    return retVec;
-//}
-
-// More efficient but vec is required to be -1.5B < vec < 1.5B
-Vec3d Simulation::applyPeriodicBC(const Vec3d& vec)const{
-    Vec3d retVec;
-    static double a = 2.0 / boxSize_;
-
-    int k = vec.x * a;
-    retVec.x = vec.x - k * boxSize_;
-    k = retVec.x * a;
-    retVec.x = retVec.x - k * boxSize_;
-
-    int l = vec.y * a;
-    retVec.y = vec.y - l * boxSize_;
-    l = retVec.y * a;
-    retVec.y = retVec.y - l * boxSize_;
-
-    int m = vec.z * a;
-    retVec.z = vec.z - m * boxSize_;
-    m = retVec.z * a;
-    retVec.z = retVec.z - m * boxSize_;
-
-    return retVec;
 }
 
 ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
     const Particle& partA = particles_[pA];
     const Particle& partB = particles_[pB];
 
-    Vec3d dist   = applyPeriodicBC(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
+    Vec3d dist   = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
     Vec3d relVel = partA.vel - partB.vel;
 
     double time(0.0);
-    bool isCollision = raySphereIntersection(radii_[pA] + radii_[pB], dist, relVel, time);
+    bool isCollision = raySphereIntersection(partA.radius + partB.radius, dist, relVel, time);
 
     if(isCollision) return ParticleEvent(time + time_, pA, pB + 1, nCollisions_[pB]);
     else return ParticleEvent();
@@ -109,7 +33,7 @@ ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
 ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     int cidx = cll_.getIndex(pid);
     double time(0.0);
-    Vec3d rpos = applyPeriodicBC(particles_[pid].pos - cll_.getCellOrigin(cidx));
+    Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
     int cellOffset = rayCellIntersection(cll_.getCellSize(), rpos, particles_[pid].vel, time);
     return ParticleEvent(time + time_, pid, cellOffset + nSpheres_ + 1);
 }
@@ -117,9 +41,7 @@ ParticleEvent Simulation::getCellCrossEvent(int pid)const{
 void Simulation::updateParticle(int pid){
     if(particles_[pid].time != time_){
         particles_[pid].pos += particles_[pid].vel * (time_ - particles_[pid].time);
-        particles_[pid].pos.x -= int(particles_[pid].pos.x * (2.0 / boxSize_) - 1.0) * boxSize_;
-        particles_[pid].pos.y -= int(particles_[pid].pos.y * (2.0 / boxSize_) - 1.0) * boxSize_;
-        particles_[pid].pos.z -= int(particles_[pid].pos.z * (2.0 / boxSize_) - 1.0) * boxSize_;
+        particles_[pid].pos  = pbc_.apply(particles_[pid].pos);
         particles_[pid].time = time_;
     }
 }
@@ -139,7 +61,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
 
     {
         Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
-        Vec3d relPos   = applyPeriodicBC(particles_[pA].pos - particles_[pB].pos);
+        Vec3d relPos   = pbc_.minImage(particles_[pA].pos - particles_[pB].pos);
         Vec3d deltaVel = relPos * (dot(relPos, relVel) / dot(relPos, relPos));
 
         particles_[pA].vel -= deltaVel;
@@ -203,8 +125,8 @@ bool Simulation::init(void){
 
     //Initialize cell list
     double max_radius = 0.0;
-    for(auto radius: radii_) max_radius = std::max(max_radius, radius);
-    cll_.init(nSpheres_, boxSize_, 2.0 * max_radius);
+    for(auto particle: particles_) max_radius = std::max(max_radius, particle.radius);
+    cll_.init(nSpheres_, pbc_.getSize(), 2.0 * max_radius);
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);

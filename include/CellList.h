@@ -40,7 +40,6 @@ private:
     int*   linkedList_;
     int*   pCellIds_;
     int*   cellNeighbours_;
-    int    dirNeighbourIds_[54];
     double cellSize_;       //Cell size in each dimension
 };
 
