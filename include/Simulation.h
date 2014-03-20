@@ -4,6 +4,7 @@
 #include <vector>
 #include <random>
 #include "BoundaryCondition.h"
+#include "PeriodicCondition.h"
 #include "Vec.h"
 #include "EventManager.h"
 #include "CellList.h"
@@ -28,7 +29,7 @@ public:
         mtGen_.seed(0);
     }
 
-    void run(void);
+    void run(PeriodicCondition& outputCondition, PeriodicCondition& endCondition);
     bool init(void);
     void saveConfig(const char* filename);
 private:

@@ -48,7 +48,12 @@ int main(int argc, char *argv[]){
 
     sim.init();
 
-    sim.run();
+    PeriodicCondition end(100.0);
+    PeriodicCondition output(200.0);
+    output.setNextFunction([](double time){
+        return time + 100.0;
+    });
+    sim.run(output, end);
 
     return 0;
 }

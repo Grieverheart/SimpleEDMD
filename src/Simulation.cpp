@@ -160,13 +160,11 @@ bool Simulation::init(void){
     return true;
 }
 
-void Simulation::run(void){
+void Simulation::run(PeriodicCondition& outputCondition, PeriodicCondition& endCondition){
 
-    double endTime = 100.0;
-    
     bool running = true;
-    int nEvents = 0;
-    double snapTime = 100.0;
+    unsigned int nFiles  = 0;
+    unsigned int nEvents = 0;
     while(running){
         ParticleEvent nextEvent = eventManager_.getNextEvent();
         time_ = nextEvent.time_;
@@ -174,6 +172,7 @@ void Simulation::run(void){
 
         switch(nextEvent.getType(nSpheres_)){
         case PE_COLLISION:
+            ++nEvents;
             runCollisionEvent(nextEvent);
             break;
         case PE_CELLCROSS:
@@ -183,13 +182,13 @@ void Simulation::run(void){
             running = false;
             break;
         }
-        if(time_ >= snapTime){
+        if(outputCondition(time_, nEvents)){
             char buff[64];
-            sprintf(buff, "Data/file%06d.dat", ++nEvents);
+            sprintf(buff, "Data/file%06u.dat", ++nFiles);
             saveConfig(buff);
-            snapTime += 1.0;
+            outputCondition.next();
         }
-        if(time_ > endTime) break;
+        if(endCondition(time_, nEvents)) break;
     }
 }
 
