@@ -18,7 +18,6 @@ EventManager::~EventManager(void){
 
 void EventManager::resize(size_t nPart){
     events_.resize(nPart);
-    isInserted_.resize(nPart, false);
     eventItems_.resize(nPart);
     //Check these numbers
     leafs_.resize(nPart + 1);
@@ -53,6 +52,7 @@ void EventManager::init(void){
     }
 }
 
+//NOTE: Need to properly clear
 void EventManager::clear(void){
     for(size_t i = 0; i < events_.size(); ++i) clear(i);
 }
@@ -69,14 +69,12 @@ void EventManager::push(size_t pID, const ParticleEvent& event){
     events_[pID].push(event);
 }
 
-//NOTE: Should try to code without using delete and insert
 void EventManager::update(size_t pID){
-    if(isInserted_[pID]) deleteFromEventQ(pID);
-    if(!events_[pID].empty()) insertInEventQ(pID);
+    deleteFromEventQ(pID);
+    insertInEventQ(pID);
 }
 
 void EventManager::insertInEventQ(size_t eRef){
-    isInserted_[eRef] = true;
     const ParticleEvent& event = events_[eRef].top();
     size_t index = (size_t)(scaleFactor_ * event.time_ - baseIndex_); 
 
@@ -113,9 +111,7 @@ void EventManager::processOverflowList(void){
     }
 }
 
-//NOTE: At the moment this doesn't work if the event manager is empty
 void EventManager::deleteFromEventQ(size_t eRef){
-    isInserted_[eRef] = false;
     const EventItem& eItem = eventItems_[eRef];
     size_t index = eItem.qIndex_;
     if(index == currentIndex_) cbtDelete(eRef);

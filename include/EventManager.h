@@ -38,8 +38,6 @@ private:
 private:
     typedef BinaryHeap<ParticleEvent, ParticleEventLess> PEL;
     std::vector<PEL> events_;
-    //We use this as a temporary measure, since with cell list, all particles will have at least one event
-    std::vector<bool> isInserted_; 
 
     //Priority queue vars
     std::vector<EventItem> eventItems_; //Same size as events_. In principle it is a linked-list/binary tree node.

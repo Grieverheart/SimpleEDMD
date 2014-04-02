@@ -9,6 +9,8 @@ inline bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& 
     double s  = dot(pos, dir);
     double l2 = dot(pos, pos);
     double r2 = radius * radius;
+    //NOTE: maybe we should just check s < 0.0. This means they are moving appart.
+    //We only want to know if they are approaching eachother and l2 < r2.
     if(s < 0.0 && l2 > r2) return false;
 
     double idnorm = 1.0 / sqrt(dot(dir, dir));

@@ -3,8 +3,9 @@
 
 #include <vector>
 #include <random>
+#include <ctime>
 #include "BoundaryCondition.h"
-#include "PeriodicCondition.h"
+#include "PeriodicCallback.h"
 #include "Vec.h"
 #include "EventManager.h"
 #include "CellList.h"
@@ -24,14 +25,27 @@ class Simulation{
 public:
     Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles):
         nSpheres_(particles.size()), time_(0.0),
-        pbc_(pbc), particles_(particles)
+        pbc_(pbc), particles_(particles), systemVelocity_(0.0)
     {
-        mtGen_.seed(0);
+        mtGen_.seed(time(NULL));
     }
 
-    void run(PeriodicCondition& outputCondition, PeriodicCondition& endCondition);
+    void run(double endTime, PeriodicCallback& outputCondition);
     bool init(void);
-    void saveConfig(const char* filename);
+
+    int getNumParticles(void)const{
+        return nSpheres_;
+    }
+    const std::vector<Particle>& getParticles(void)const{
+        return particles_;
+    }
+    const CubicPBC& getPBC(void)const{
+        return pbc_;
+    }
+    Vec3d getSystemVelocity(void)const{
+        return systemVelocity_;
+    }
+
 private:
     ParticleEvent getCollisionEvent(int pA, int pB)const;
     ParticleEvent getCellCrossEvent(int pid)const;
@@ -46,6 +60,7 @@ private:
 
     std::vector<int>      nCollisions_;
     std::vector<Particle> particles_;
+    Vec3d                 systemVelocity_;
 
     EventManager eventManager_;
     CellList     cll_;

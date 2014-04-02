@@ -4,18 +4,6 @@
 #include "include/EventManager.h"
 #include "include/ray_intersections.h"
 
-void Simulation::saveConfig(const char* filename){
-    FILE *fp = fopen(filename, "w");
-    fprintf(fp, "%d\n%f\n", nSpheres_, pbc_.getSize());
-
-    for(int i = 0; i < nSpheres_; ++i){
-        updateParticle(i);
-        fprintf(fp, "%f\t%f\t%f\t", particles_[i].pos.x, particles_[i].pos.y, particles_[i].pos.z);
-        fprintf(fp, "%f\n", particles_[i].radius);
-    }
-    fclose(fp);
-}
-
 ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
     const Particle& partA = particles_[pA];
     const Particle& partB = particles_[pB];
@@ -131,16 +119,20 @@ bool Simulation::init(void){
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
     for(int i = 0; i < nSpheres_; ++i){
-        Vec3d vec;
-        double sum = 0.0;
-        for(int j = 0; j < 3; ++j){
-            vec[j] = dist(mtGen_);
-            sum += vec[j] * vec[j];
-        }
-        vec = vec * (1.0 / sqrt(sum));
+        double x1, x2, r;
+        do{
+            x1 = dist(mtGen_);
+            x2 = dist(mtGen_);
+            r = x1 * x1 + x2 * x2;
+        }while(r >= 1.0);
+        double s = 2.0 * sqrt(1.0 - r);
+        Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
+
+        systemVelocity_  += vec;
         particles_[i].vel = vec;
         cll_.add(i, particles_[i].pos);
     }
+    systemVelocity_ = systemVelocity_ * (1.0 / nSpheres_);
 
     //Find initial collision events
     for(int i = 0; i < nSpheres_; ++i){
@@ -160,13 +152,13 @@ bool Simulation::init(void){
     return true;
 }
 
-void Simulation::run(PeriodicCondition& outputCondition, PeriodicCondition& endCondition){
+void Simulation::run(double endTime, PeriodicCallback& outputCondition){
 
     bool running = true;
-    unsigned int nFiles  = 0;
     unsigned int nEvents = 0;
     while(running){
         ParticleEvent nextEvent = eventManager_.getNextEvent();
+        outputCondition(nextEvent.time_);
         time_ = nextEvent.time_;
         //std::cout << time_ << std::endl;
 
@@ -182,13 +174,7 @@ void Simulation::run(PeriodicCondition& outputCondition, PeriodicCondition& endC
             running = false;
             break;
         }
-        if(outputCondition(time_, nEvents)){
-            char buff[64];
-            sprintf(buff, "Data/file%06u.dat", ++nFiles);
-            saveConfig(buff);
-            outputCondition.next();
-        }
-        if(endCondition(time_, nEvents)) break;
+        if(time_ >= endTime) running = false;
     }
 }
 

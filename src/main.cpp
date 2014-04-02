@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <unistd.h>
 #include "include/Simulation.h"
 
 void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles){
@@ -37,6 +38,24 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
 	fclose(fp);
 }
 
+void saveConfig(const char* filename, double time, const Simulation& sim){
+    FILE *fp = fopen(filename, "w");
+    int nSpheres = sim.getNumParticles();
+    const CubicPBC& pbc = sim.getPBC();
+    fprintf(fp, "%d\n%f\n", nSpheres, pbc.getSize());
+
+    const std::vector<Particle>& particles = sim.getParticles();
+    for(int i = 0; i < nSpheres; ++i){
+        Vec3d pos(particles[i].pos);
+        pos += particles[i].vel * (time - particles[i].time) - sim.getSystemVelocity() * time;
+        pos  = pbc.apply(pos);
+        fprintf(fp, "%f\t%f\t%f\t", pos.x, pos.y, pos.z);
+        fprintf(fp, "%f\n", particles[i].radius);
+    }
+    fprintf(fp, "%f\n", time);
+    fclose(fp);
+}
+
 int main(int argc, char *argv[]){
 
 
@@ -48,12 +67,18 @@ int main(int argc, char *argv[]){
 
     sim.init();
 
-    PeriodicCondition end(100.0);
-    PeriodicCondition output(200.0);
+    PeriodicCallback output(100.0 + 0.001);
     output.setNextFunction([](double time){
-        return time + 100.0;
+        return 100.0 + 1.175 * (time - 100.0);
     });
-    sim.run(output, end);
+    output.setCallback([&sim](double time){
+        static int nFiles = 0;
+        char buff[64];
+        sprintf(buff, "Data/pid%u.%06u.dat", getpid(), nFiles++);
+        saveConfig(buff, time, sim);
+    });
+
+    sim.run(500.0, output);
 
     return 0;
 }
