@@ -30,7 +30,7 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
             Particle part;
             part.pos = pbc.apply(coords);
             part.rot = clam::Quatd(1.0, 0.0, 0.0, 0.0);
-            part.radius = radius;
+            part.size = radius;
             particles.push_back(part);
 		}
         else if(i == 2) pbc.setSize(atof(line));
@@ -54,7 +54,7 @@ void saveConfig(const char* filename, double time, const Simulation& sim){
         pos += particles[i].vel * (time - particles[i].time) - sim.getSystemVelocity() * time;
         pos  = pbc.apply(pos);
         fprintf(fp, "%f\t%f\t%f\t", pos[0], pos[1], pos[2]);
-        fprintf(fp, "%f\n", particles[i].radius);
+        fprintf(fp, "%f\n", particles[i].size);
     }
     fprintf(fp, "%f\n", time);
     fclose(fp);

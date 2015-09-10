@@ -4,6 +4,8 @@
 #include "EventManager.h"
 #include "ray_intersections.h"
 
+//TODO: This will check for and return a PE_POSSIBLE_COLLISION in case the
+//polyhedra are farther apart than the sum of their circumscribed radii.
 ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
     const Particle& partA = particles_[pA];
     const Particle& partB = particles_[pB];
@@ -12,7 +14,7 @@ ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
     clam::Vec3d relVel = partA.vel - partB.vel;
 
     double time(0.0);
-    bool isCollision = raySphereIntersection(partA.radius + partB.radius, dist, relVel, time);
+    bool isCollision = raySphereIntersection(partA.size + partB.size, dist, relVel, time);
 
     if(isCollision) return ParticleEvent(time + time_, pA, pB + 1, nCollisions_[pB]);
     else return ParticleEvent();
@@ -113,7 +115,7 @@ bool Simulation::init(void){
 
     //Initialize cell list
     double max_radius = 0.0;
-    for(auto particle: particles_) max_radius = std::max(max_radius, particle.radius);
+    for(auto particle: particles_) max_radius = std::max(max_radius, particle.size);
     cll_.init(nSpheres_, pbc_.getSize(), 2.0 * max_radius);
 
     //Initialize paricle velocities

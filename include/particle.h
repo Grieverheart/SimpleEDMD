@@ -8,7 +8,7 @@ struct Particle{
         time(0.0)
     {}
     double time;
-    double radius;
+    double size;
     clam::Vec3d pos;
     clam::Quatd rot;
     clam::Vec3d vel;

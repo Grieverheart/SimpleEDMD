@@ -8,7 +8,7 @@
 #include "PeriodicCallback.h"
 #include "EventManager.h"
 #include "CellList.h"
-#include "Particle.h"
+#include "particle.h"
 #include "shape/variant_fwd.h"
 
 //NOTE:
