@@ -50,7 +50,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
     {
         clam::Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
         clam::Vec3d relPos   = pbc_.minImage(particles_[pA].pos - particles_[pB].pos);
-        clam::Vec3d deltaVel = relPos * (dot(relPos, relVel) / dot(relPos, relPos));
+        clam::Vec3d deltaVel = relPos * (clam::dot(relPos, relVel) / clam::dot(relPos, relPos));
 
         particles_[pA].vel -= deltaVel;
         particles_[pB].vel += deltaVel;
@@ -160,7 +160,7 @@ void Simulation::run(double endTime, PeriodicCallback& outputCondition){
         ParticleEvent nextEvent = eventManager_.getNextEvent();
         outputCondition(nextEvent.time_);
         time_ = nextEvent.time_;
-        printf("%.16lf\n", time_);
+        //printf("%.16lf\n", time_);
 
         switch(nextEvent.getType(nSpheres_)){
         case PE_COLLISION:

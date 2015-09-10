@@ -6,14 +6,14 @@
 #include "clam.h"
 
 inline bool raySphereIntersection(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t){
-    double s  = dot(pos, dir);
-    double l2 = dot(pos, pos);
+    double s  = clam::dot(pos, dir);
+    double l2 = clam::dot(pos, pos);
     double r2 = radius * radius;
     //NOTE: maybe we should just check s < 0.0. This means they are moving appart.
     //We only want to know if they are approaching eachother and l2 < r2.
     if(s < 0.0 && l2 > r2) return false;
 
-    double idnorm = 1.0 / sqrt(dot(dir, dir));
+    double idnorm = 1.0 / sqrt(clam::dot(dir, dir));
     s *= idnorm;
     double m2 = l2 - s * s;
     if(m2 > r2) return false;
@@ -31,12 +31,12 @@ inline bool raySphereIntersection(double radius, const clam::Vec3d& pos, const c
 
 //NOTE: Expects spheres to not be penetrating
 inline bool raySphereIntersectionF(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t){
-    double s  = dot(pos, dir);
+    double s  = clam::dot(pos, dir);
     if(s < 0.0) return false;
 
-    double l2 = dot(pos, pos);
+    double l2 = clam::dot(pos, pos);
     double r2 = radius * radius;
-    double idnorm = 1.0 / sqrt(dot(dir, dir));
+    double idnorm = 1.0 / sqrt(clam::dot(dir, dir));
     s *= idnorm;
     double m2 = l2 - s * s;
     if(m2 > r2) return false;
