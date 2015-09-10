@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
-#include "include/Simulation.h"
+#include "Simulation.h"
 
 void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles){
 	char line[128];
@@ -19,7 +19,7 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
 		u=0;
 		if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; // Remove the niewline from the end of the string
         if(i > 2){
-            Vec3d coords;
+            clam::Vec3d coords;
             double radius = 0.0;
             for(t1 = strtok(line,delim); t1 != NULL; t1 = strtok(NULL, delim)){
                 if(u < 3)	coords[u] = atof(t1);
@@ -46,10 +46,10 @@ void saveConfig(const char* filename, double time, const Simulation& sim){
 
     const std::vector<Particle>& particles = sim.getParticles();
     for(int i = 0; i < nSpheres; ++i){
-        Vec3d pos(particles[i].pos);
+        clam::Vec3d pos(particles[i].pos);
         pos += particles[i].vel * (time - particles[i].time) - sim.getSystemVelocity() * time;
         pos  = pbc.apply(pos);
-        fprintf(fp, "%f\t%f\t%f\t", pos.x, pos.y, pos.z);
+        fprintf(fp, "%f\t%f\t%f\t", pos[0], pos[1], pos[2]);
         fprintf(fp, "%f\n", particles[i].radius);
     }
     fprintf(fp, "%f\n", time);

@@ -6,10 +6,10 @@
 #include <ctime>
 #include "BoundaryCondition.h"
 #include "PeriodicCallback.h"
-#include "Vec.h"
 #include "EventManager.h"
 #include "CellList.h"
 #include "Particle.h"
+#include "shape/variant_fwd.h"
 
 //NOTE:
 //1. The Boundary Condition class will most probably need to be handed
@@ -18,8 +18,6 @@
 //   We might have to pass this as a template parameter too.
 //3. We might also need to switch to -B/2 -> +B/2 coordinates so that
 //   we can easily implement spherical boundary conditions.
-//4. We should have two ways to create a Simulation. One with a
-//   fromFile method and one by handing the needed information.
 
 class Simulation{
 public:
@@ -42,7 +40,7 @@ public:
     const CubicPBC& getPBC(void)const{
         return pbc_;
     }
-    Vec3d getSystemVelocity(void)const{
+    clam::Vec3d getSystemVelocity(void)const{
         return systemVelocity_;
     }
 
@@ -58,9 +56,10 @@ private:
 
     CubicPBC pbc_;
 
-    std::vector<int>      nCollisions_;
+    std::vector<int> nCollisions_;
     std::vector<Particle> particles_;
-    Vec3d                 systemVelocity_;
+    std::vector<shape::Variant*> shapes_;
+    clam::Vec3d systemVelocity_;
 
     EventManager eventManager_;
     CellList     cll_;

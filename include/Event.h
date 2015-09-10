@@ -7,6 +7,7 @@
 enum ParticleEventType{
     PE_NONE = 0,
     PE_COLLISION,
+    //PE_POSSIBLE_COLLISION,
     PE_CELLCROSS
 };
 

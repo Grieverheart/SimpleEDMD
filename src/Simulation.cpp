@@ -1,15 +1,15 @@
 #include <cstdio>
 #include <cmath>
-#include "include/Simulation.h"
-#include "include/EventManager.h"
-#include "include/ray_intersections.h"
+#include "Simulation.h"
+#include "EventManager.h"
+#include "ray_intersections.h"
 
 ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
     const Particle& partA = particles_[pA];
     const Particle& partB = particles_[pB];
 
-    Vec3d dist   = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
-    Vec3d relVel = partA.vel - partB.vel;
+    clam::Vec3d dist   = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
+    clam::Vec3d relVel = partA.vel - partB.vel;
 
     double time(0.0);
     bool isCollision = raySphereIntersection(partA.radius + partB.radius, dist, relVel, time);
@@ -21,7 +21,7 @@ ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
 ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     int cidx = cll_.getIndex(pid);
     double time(0.0);
-    Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
+    clam::Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
     int cellOffset = rayCellIntersection(cll_.getCellSize(), rpos, particles_[pid].vel, time);
     return ParticleEvent(time + time_, pid, cellOffset + nSpheres_ + 1);
 }
@@ -48,9 +48,9 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
     updateParticle(pB);
 
     {
-        Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
-        Vec3d relPos   = pbc_.minImage(particles_[pA].pos - particles_[pB].pos);
-        Vec3d deltaVel = relPos * (dot(relPos, relVel) / dot(relPos, relPos));
+        clam::Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
+        clam::Vec3d relPos   = pbc_.minImage(particles_[pA].pos - particles_[pB].pos);
+        clam::Vec3d deltaVel = relPos * (dot(relPos, relVel) / dot(relPos, relPos));
 
         particles_[pA].vel -= deltaVel;
         particles_[pB].vel += deltaVel;
@@ -126,7 +126,7 @@ bool Simulation::init(void){
             r = x1 * x1 + x2 * x2;
         }while(r >= 1.0);
         double s = 2.0 * sqrt(1.0 - r);
-        Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
+        clam::Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
 
         systemVelocity_  += vec;
         particles_[i].vel = vec;
@@ -160,7 +160,7 @@ void Simulation::run(double endTime, PeriodicCallback& outputCondition){
         ParticleEvent nextEvent = eventManager_.getNextEvent();
         outputCondition(nextEvent.time_);
         time_ = nextEvent.time_;
-        //std::cout << time_ << std::endl;
+        printf("%.16lf\n", time_);
 
         switch(nextEvent.getType(nSpheres_)){
         case PE_COLLISION:

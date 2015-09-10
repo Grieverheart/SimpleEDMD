@@ -1,7 +1,7 @@
 #ifndef __CELL_LIST_H
 #define __CELL_LIST_H
 
-#include "Vec.h"
+#include "clam.h"
 
 #define CLL_EMPTY -1
 
@@ -12,13 +12,13 @@ public:
     ~CellList(void);
 
     void init(int nPart, double boxSize, double minCellSize);
-    int add(int pid, const Vec3d& pos);
-    int update(int pid, const Vec3d& pos);
+    int add(int pid, const clam::Vec3d& pos);
+    int update(int pid, const clam::Vec3d& pos);
     int move(int pid, int coffset);
 
     int getIndex(int pid)const;
-    Vec3d getCellOrigin(int cidx)const;
-    Vec3d getCellSize(void)const;
+    clam::Vec3d getCellOrigin(int cidx)const;
+    clam::Vec3d getCellSize(void)const;
 
     class NeighbourIterator;
     class DirectionalNeighbourIterator;
@@ -31,7 +31,7 @@ public:
 private:
     int indicesToIndex(const int (&indices)[3])const;
     void indexToIndices(int index, int (&indices)[3])const;
-    int cellIndex(const Vec3d& pos)const;
+    int cellIndex(const clam::Vec3d& pos)const;
 
 private:
     int    nPart_;

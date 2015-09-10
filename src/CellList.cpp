@@ -1,4 +1,4 @@
-#include "include/CellList.h"
+#include "CellList.h"
 
 //NOTE: At some point we should make the box a 3x3 matrix
 
@@ -40,7 +40,7 @@ void CellList::init(int nPart, double boxSize, double minCellSize){
     }
 }
 
-int CellList::add(int pid, const Vec3d& pos){
+int CellList::add(int pid, const clam::Vec3d& pos){
     int cidx       = cellIndex(pos);
     pCellIds_[pid] = cidx;
 
@@ -50,7 +50,7 @@ int CellList::add(int pid, const Vec3d& pos){
     return cidx;
 }
 
-int CellList::update(int pid, const Vec3d& pos){
+int CellList::update(int pid, const clam::Vec3d& pos){
     int cidx = cellIndex(pos);
     if(cidx == pCellIds_[pid]) return cidx;
 
@@ -101,8 +101,8 @@ int CellList::getIndex(int pid)const{
     return pCellIds_[pid];
 }
 
-Vec3d CellList::getCellOrigin(int cidx)const{
-    Vec3d cellIndices = Vec3d(
+clam::Vec3d CellList::getCellOrigin(int cidx)const{
+    clam::Vec3d cellIndices = clam::Vec3d(
         cidx % nCells_,
        (cidx / nCells_) % nCells_,
         cidx / (nCells_ * nCells_)
@@ -110,8 +110,8 @@ Vec3d CellList::getCellOrigin(int cidx)const{
     return cellIndices * cellSize_;
 }
 
-Vec3d CellList::getCellSize(void)const{
-    return Vec3d(cellSize_);
+clam::Vec3d CellList::getCellSize(void)const{
+    return clam::Vec3d(cellSize_);
 }
 
 CellList::NeighbourIterator CellList::getNeighbourIterator(int pid)const{
@@ -136,7 +136,7 @@ void CellList::indexToIndices(int index, int (&indices)[3])const{
     indices[2] =  index / (nCells_ * nCells_);
 }
 
-int CellList::cellIndex(const Vec3d& pos)const{
+int CellList::cellIndex(const clam::Vec3d& pos)const{
     int cellIndices[3];
     for(int i = 0; i < 3; ++i) cellIndices[i] = int(pos[i] / cellSize_);
     return indicesToIndex(cellIndices);

@@ -1,7 +1,7 @@
 #ifndef __PARTICLE_H
 #define __PARTICLE_H
 
-#include "Vec.h"
+#include "clam.h"
 
 struct Particle{
     Particle(void):
@@ -9,8 +9,10 @@ struct Particle{
     {}
     double time;
     double radius;
-    Vec3d  pos;
-    Vec3d  vel;
+    clam::Vec3d pos;
+    clam::Quatd rot;
+    clam::Vec3d vel;
+    size_t shape_id;
 };
 
 #endif

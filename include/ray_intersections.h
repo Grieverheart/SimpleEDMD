@@ -3,9 +3,9 @@
 
 #include <cstdio>
 #include <cmath>
-#include "Vec.h"
+#include "clam.h"
 
-inline bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& dir, double& t){
+inline bool raySphereIntersection(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t){
     double s  = dot(pos, dir);
     double l2 = dot(pos, pos);
     double r2 = radius * radius;
@@ -22,7 +22,7 @@ inline bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& 
     if(__builtin_expect(l2 > r2, 1)) t = s - q;
     else{
         t = s + q;
-        printf("%f, %f\n", l2, r2);
+        //printf("%f, %f\n", l2, r2);
     }
     t *= idnorm;
 
@@ -30,7 +30,7 @@ inline bool raySphereIntersection(double radius, const Vec3d& pos, const Vec3d& 
 }
 
 //NOTE: Expects spheres to not be penetrating
-inline bool raySphereIntersectionF(double radius, const Vec3d& pos, const Vec3d& dir, double& t){
+inline bool raySphereIntersectionF(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t){
     double s  = dot(pos, dir);
     if(s < 0.0) return false;
 
@@ -46,7 +46,7 @@ inline bool raySphereIntersectionF(double radius, const Vec3d& pos, const Vec3d&
 }
 
 //NOTE: Assumes that the ray is inside the box. Returns the new cell offset.
-inline int rayCellIntersection(const Vec3d& cellSize, const Vec3d& rpos, const Vec3d& dir, double& t){
+inline int rayCellIntersection(const clam::Vec3d& cellSize, const clam::Vec3d& rpos, const clam::Vec3d& dir, double& t){
     //NOTE: Check for +-0
     t = (dir[0] < 0.0)? -rpos[0] / dir[0]: (cellSize[0] - rpos[0]) / dir[0];
     int cellOffset = !(dir[0] < 0.0);
