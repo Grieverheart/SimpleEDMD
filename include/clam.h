@@ -75,10 +75,10 @@ namespace clam{
         }
 
         constexpr Vec3<T> operator*(T a)const{
-            return Vec3<T>(a * data_[0], a * data_[1], a * data_[2]);
+            return Vec3<T>(data_[0] * a, data_[1] * a, data_[2] * a);
         }
 
-        Vec3<T> operator*=(T a){
+        Vec3<T>& operator*=(T a){
             data_[0] *= a;
             data_[1] *= a;
             data_[2] *= a;
@@ -111,7 +111,7 @@ namespace clam{
             return Vec3<T>(data_[0] / a[0], data_[1] / a[1], data_[2] / a[2]);
         }
 
-        Vec3<T> operator/=(const Vec3<T>& a){
+        Vec3<T>& operator/=(const Vec3<T>& a){
             data_[0] /= a[0];
             data_[1] /= a[1];
             data_[2] /= a[2];
@@ -126,7 +126,7 @@ namespace clam{
             );
         }
 
-        Vec3<T> operator+=(const Vec3<T>& other){
+        Vec3<T>& operator+=(const Vec3<T>& other){
             data_[0] += other[0];
             data_[1] += other[1];
             data_[2] += other[2];
@@ -145,10 +145,10 @@ namespace clam{
             return Vec3<T>(-data_[0], -data_[1], -data_[2]);
         }
 
-        Vec3<T> operator-=(const Vec3<T>& other){
-            data_[0] += other[0];
-            data_[1] += other[1];
-            data_[2] += other[2];
+        Vec3<T>& operator-=(const Vec3<T>& other){
+            data_[0] -= other[0];
+            data_[1] -= other[1];
+            data_[2] -= other[2];
             return *this;
         }
 
