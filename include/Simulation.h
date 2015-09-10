@@ -21,9 +21,9 @@
 
 class Simulation{
 public:
-    Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles):
-        nSpheres_(particles.size()), time_(0.0),
-        pbc_(pbc), particles_(particles), systemVelocity_(0.0)
+    Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles, std::vector<shape::Variant*>&& shapes):
+        nSpheres_(particles.size()), n_shapes_(shapes.size()), time_(0.0),
+        pbc_(pbc), particles_(particles), shapes_(shapes), systemVelocity_(0.0)
     {
         mtGen_.seed(time(NULL));
     }
@@ -52,6 +52,7 @@ private:
     void updateParticle(int pid);
 
     int    nSpheres_;
+    int    n_shapes_;
     double time_;
 
     CubicPBC pbc_;

@@ -1,20 +1,21 @@
 #include <cstdio>
 #include <cstring>
 #include <unistd.h>
+#include "shape/variant.h"
 #include "Simulation.h"
 
-void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles){
+void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles, std::vector<shape::Variant*>& shapes){
 	char line[128];
     const char* delim = "\t";
 	char *t1 = NULL;
 	int i = 1,u = 0;
-	
+
 	FILE *fp;
 	fp = fopen(filename,"r");
 	if(!fp){
 		printf("Couldn't open file %s\n",filename);
 	}
-	
+
 	while(fgets(line,sizeof(line),fp) != NULL){
 		u=0;
 		if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; // Remove the niewline from the end of the string
@@ -28,14 +29,17 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
             }
             Particle part;
             part.pos = pbc.apply(coords);
+            part.rot = clam::Quatd(1.0, 0.0, 0.0, 0.0);
             part.radius = radius;
-            particles.emplace_back(part);
+            particles.push_back(part);
 		}
         else if(i == 2) pbc.setSize(atof(line));
 		i++;
 	}
 	free(t1);
 	fclose(fp);
+
+    shapes.push_back(new shape::Variant(shape::Sphere()));
 }
 
 void saveConfig(const char* filename, double time, const Simulation& sim){
@@ -60,10 +64,11 @@ int main(int argc, char *argv[]){
 
 
     std::vector<Particle> particles;
+    std::vector<shape::Variant*> shapes;
     CubicPBC pbc;
-    readConfig(argv[1], pbc, particles);
+    readConfig(argv[1], pbc, particles, shapes);
 
-    Simulation sim(pbc, std::move(particles));
+    Simulation sim(pbc, std::move(particles), std::move(shapes));
 
     sim.init();
 

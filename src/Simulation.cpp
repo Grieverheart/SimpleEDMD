@@ -23,7 +23,7 @@ ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     double time(0.0);
     clam::Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
     int cellOffset = rayCellIntersection(cll_.getCellSize(), rpos, particles_[pid].vel, time);
-    return ParticleEvent(time + time_, pid, cellOffset + nSpheres_ + 1);
+    return ParticleEvent(time + time_, pid, cellOffset + 2 * nSpheres_ + 1);
 }
 
 void Simulation::updateParticle(int pid){
@@ -90,7 +90,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
 
 void Simulation::runCellCrossEvent(const ParticleEvent& event){
     int pid     = event.pid_;
-    int coffset = event.id_ - nSpheres_ - 1;
+    int coffset = event.id_ - 2 * nSpheres_ - 1;
     cll_.move(pid, coffset);
     updateParticle(pid);
     for(int cid: cll_.getDirNeighbourIterator(pid, coffset)){

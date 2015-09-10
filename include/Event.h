@@ -3,11 +3,12 @@
 
 #include <cstddef>
 
-//NOTE: Consider using boost::variant, it should give better performance
+//TODO: Consider using boost::variant, it should give better performance
+//Or perhaps use two highest bits for type and rest for data!!!
 enum ParticleEventType{
     PE_NONE = 0,
     PE_COLLISION,
-    //PE_POSSIBLE_COLLISION,
+    PE_POSSIBLE_COLLISION,
     PE_CELLCROSS
 };
 
@@ -22,7 +23,10 @@ public:
     ~ParticleEvent(void){};
 
     ParticleEventType getType(int npart){
-        return (id_ == 0)? PE_NONE: (id_ >= 1 && id_ < npart + 1)? PE_COLLISION: PE_CELLCROSS;
+        return (id_ == 0)? PE_NONE:
+               (id_ >= 1 && id_ < npart + 1)? PE_COLLISION:
+               (id_ >= npart + 1 && id_ < 2 * npart + 1)? PE_POSSIBLE_COLLISION:
+               PE_CELLCROSS;
     }
 
     double time_;
