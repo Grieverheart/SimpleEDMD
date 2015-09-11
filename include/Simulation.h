@@ -66,6 +66,8 @@ private:
     CellList     cll_;
 
     std::mt19937 mtGen_;
+
+    class ShapeCollisionEventVisitor;
 };
 
 #endif

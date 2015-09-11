@@ -3,26 +3,29 @@
 
 namespace overlap{
     //NOTE: Assume normalized ray direction
-    inline bool sphere_raycast(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t, clam::Vec3d& normal){
+    inline bool sphere_raycast(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t, clam::Vec3d* normal = nullptr){
         double s  = dot(pos, dir);
         double l2 = dot(pos, pos);
         double r2 = radius * radius;
 
         if(s < 0.0 && l2 > r2) return false;
 
+        double idnorm = 1.0 / dir.length();
+        s *= idnorm;
         double m2 = l2 - s * s;
         if(m2 > r2) return false;
 
-        if(l2 > r2) t = s - sqrt(r2 - m2);
-        else t = s + sqrt(r2 - m2);
+        if(l2 > r2) t = (s - sqrt(r2 - m2)) * idnorm;
+        else t = (s + sqrt(r2 - m2)) * idnorm;
 
-        normal = (t * dir - pos) / radius;
+        if(normal) *normal = (t * dir - pos) / radius;
 
         return true;
     }
 
-    //NOTE: Assume normalized ray direction
-    inline bool ellipsoid_raycast(const clam::Vec3d& radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t, clam::Vec3d& normal){
+    //NOTE: Assume normalized ray direction.
+    //TODO: Don't assume normalized ray direction.
+    inline bool ellipsoid_raycast(const clam::Vec3d& radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t, clam::Vec3d* normal = nullptr){
         clam::Vec3d p = pos / radius;
         clam::Vec3d q = dir / radius;
 
@@ -39,13 +42,15 @@ namespace overlap{
         if(pp > 1.0) t = -(0.5 * pq + sqrt(D)) / qq;
         else t = -(0.5 * pq - sqrt(D)) / qq;
 
-        normal = (t * dir - pos) / (radius * radius);
-        normal /= normal.length();
+        if(normal){
+            *normal = (t * dir - pos) / (radius * radius);
+            *normal /= normal->length();
+        }
 
         return true;
     }
 
-    inline bool AABB_raycast(const clam::Vec3d& aabb_min, const clam::Vec3d& aabb_max, const clam::Vec3d& pos, const clam::Vec3d& dir, double &t, clam::Vec3d& normal){
+    inline bool AABB_raycast(const clam::Vec3d& aabb_min, const clam::Vec3d& aabb_max, const clam::Vec3d& pos, const clam::Vec3d& dir, double &t, clam::Vec3d* normal = nullptr){
         clam::Vec3d invDir = 1.0 / dir;
         clam::Vec3d ta = (aabb_min - pos) * invDir;
         clam::Vec3d tb = (aabb_max - pos) * invDir;
@@ -61,8 +66,10 @@ namespace overlap{
         for(int i = 0; i < 3; ++i){
             if(abs(point[i]) > max_dist){
                 max_dist = abs(point[i]);
-                normal = clam::Vec3d(0.0);
-                normal[i] = (max_dist > 0.0)? 1.0: -1.0;
+                if(normal){
+                    *normal = clam::Vec3d(0.0);
+                    (*normal)[i] = (max_dist > 0.0)? 1.0: -1.0;
+                }
             }
         }
 
@@ -74,13 +81,13 @@ namespace overlap{
     inline int cell_raycast(const clam::Vec3d& cellSize, const clam::Vec3d& rpos, const clam::Vec3d& dir, double& t){
         //NOTE: Check for +-0
         t = (dir[0] < 0.0)? -rpos[0] / dir[0]: (cellSize[0] - rpos[0]) / dir[0];
-        int cellOffset = (dir[0] < 0.0);
+        int cellOffset = !(dir[0] < 0.0);
         for(int i = 1; i < 3; ++i){
             bool isNegative = (dir[i] < 0.0);
             double dt = isNegative? -rpos[i] / dir[i]: (cellSize[i] - rpos[i]) / dir[i];
             if(dt < t){
                 t = dt;
-                cellOffset = 2 * i + isNegative;
+                cellOffset = 2 * i + !isNegative;
             }
         }
         return cellOffset;

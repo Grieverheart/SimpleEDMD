@@ -2,29 +2,65 @@
 #include <cmath>
 #include "Simulation.h"
 #include "EventManager.h"
-#include "ray_intersections.h"
+#include "shape/variant.h"
+#include "overlap/ray_casting.h"
+#include "overlap/gjk.h"
 
-//TODO: This will check for and return a PE_POSSIBLE_COLLISION in case the
-//polyhedra are farther apart than the sum of their circumscribed radii.
-ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
-    const Particle& partA = particles_[pA];
-    const Particle& partB = particles_[pB];
+class Simulation::ShapeCollisionEventVisitor: public boost::static_visitor<ParticleEvent> {
+public:
+    ShapeCollisionEventVisitor(const Simulation& sim, int pa_idx, int pb_idx):
+        sim_(sim), pa_idx_(pa_idx), pb_idx_(pb_idx)
+    {}
 
-    clam::Vec3d dist   = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
+    //TODO: This will check for and return a PE_POSSIBLE_COLLISION in case the
+    //polyhedra are farther apart than the sum of their circumscribed radii.
+    template<typename T, typename U>
+    ParticleEvent operator()(const T& a, const U& b)const{
+        Particle partA = sim_.particles_[pa_idx_];
+        Particle partB = sim_.particles_[pb_idx_];
+        partB.pos = sim_.pbc_.minImage(partB.pos + partB.vel * (sim_.time_ - partB.time) - partA.pos);
+        partA.pos = 0.0;
+        clam::Vec3d relVel = partA.vel - partB.vel;
+        double speed = relVel.length();
+
+        double time(0.0);
+        if(overlap::gjk_raycast(partA, a, partB, b, relVel / speed, time)){
+            return ParticleEvent(sim_.time_ + time / speed, pa_idx_, pb_idx_ + 1, sim_.nCollisions_[pb_idx_]);
+        }
+        else return ParticleEvent();
+    }
+
+private:
+    const Simulation& sim_;
+    int pa_idx_;
+    int pb_idx_;
+};
+
+template<>
+inline ParticleEvent Simulation::ShapeCollisionEventVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
+    const Particle& partA = sim_.particles_[pa_idx_];
+    const Particle& partB = sim_.particles_[pb_idx_];
+
+    clam::Vec3d dist = sim_.pbc_.minImage(partB.pos + partB.vel * (sim_.time_ - partB.time) - partA.pos);
     clam::Vec3d relVel = partA.vel - partB.vel;
 
     double time(0.0);
-    bool isCollision = raySphereIntersection(partA.size + partB.size, dist, relVel, time);
-
-    if(isCollision) return ParticleEvent(time + time_, pA, pB + 1, nCollisions_[pB]);
+    if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius(), dist, relVel, time)){
+        return ParticleEvent(sim_.time_ + time, pa_idx_, pb_idx_ + 1, sim_.nCollisions_[pb_idx_]);
+    }
     else return ParticleEvent();
+}
+
+ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
+    //TODO: Pass correct shape
+    return boost::apply_visitor(ShapeCollisionEventVisitor(*this, pA, pB), *shapes_[0], *shapes_[0]);
 }
 
 ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     int cidx = cll_.getIndex(pid);
     double time(0.0);
     clam::Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
-    int cellOffset = rayCellIntersection(cll_.getCellSize(), rpos, particles_[pid].vel, time);
+    int cellOffset = overlap::cell_raycast(cll_.getCellSize(), rpos, particles_[pid].vel, time);
     return ParticleEvent(time + time_, pid, cellOffset + 2 * nSpheres_ + 1);
 }
 

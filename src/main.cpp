@@ -5,25 +5,25 @@
 #include "Simulation.h"
 
 void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles, std::vector<shape::Variant*>& shapes){
-	char line[128];
+    char line[128];
     const char* delim = "\t";
-	char *t1 = NULL;
-	int i = 1,u = 0;
+    char *t1 = NULL;
+    int i = 1,u = 0;
 
-	FILE *fp;
-	fp = fopen(filename,"r");
-	if(!fp){
-		printf("Couldn't open file %s\n",filename);
-	}
+    FILE *fp;
+    fp = fopen(filename,"r");
+    if(!fp){
+        printf("Couldn't open file %s\n",filename);
+    }
 
-	while(fgets(line,sizeof(line),fp) != NULL){
-		u=0;
-		if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; // Remove the niewline from the end of the string
+    while(fgets(line,sizeof(line),fp) != NULL){
+        u=0;
+        if(line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; // Remove the niewline from the end of the string
         if(i > 2){
             clam::Vec3d coords;
             double radius = 0.0;
             for(t1 = strtok(line,delim); t1 != NULL; t1 = strtok(NULL, delim)){
-                if(u < 3)	coords[u] = atof(t1);
+                if(u < 3) coords[u] = atof(t1);
                 else radius = atof(t1);
                 u++;
             }
@@ -31,13 +31,14 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
             part.pos = pbc.apply(coords);
             part.rot = clam::Quatd(1.0, 0.0, 0.0, 0.0);
             part.size = radius;
+            part.shape_id = 0;
             particles.push_back(part);
-		}
+        }
         else if(i == 2) pbc.setSize(atof(line));
-		i++;
-	}
-	free(t1);
-	fclose(fp);
+        i++;
+    }
+    free(t1);
+    fclose(fp);
 
     shapes.push_back(new shape::Variant(shape::Sphere()));
 }
