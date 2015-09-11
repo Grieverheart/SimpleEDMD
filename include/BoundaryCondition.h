@@ -34,9 +34,17 @@ public:
 
     clam::Vec3d apply(const clam::Vec3d& pos)const{
         clam::Vec3d retVec;
-        retVec[0] = pos[0] - int(pos[0] * iBoxSize2_ - 1.0) * boxSize_;
-        retVec[1] = pos[1] - int(pos[1] * iBoxSize2_ - 1.0) * boxSize_;
-        retVec[2] = pos[2] - int(pos[2] * iBoxSize2_ - 1.0) * boxSize_;
+        //retVec[0] = pos[0] - int(pos[0] * iBoxSize2_ - 1.0) * boxSize_;
+        //retVec[1] = pos[1] - int(pos[1] * iBoxSize2_ - 1.0) * boxSize_;
+        //retVec[2] = pos[2] - int(pos[2] * iBoxSize2_ - 1.0) * boxSize_;
+        for(int i = 0; i < 3; ++i){
+            retVec[i] = pos[i];
+            while(retVec[i] >= boxSize_) retVec[i] -= boxSize_;
+            while(retVec[i] < 0.0) retVec[i] += boxSize_;
+        }
+        if(retVec[0] < 0.0 || retVec[1] < 0.0 || retVec[2] < 0.0){
+            printf("%f, %f, %f\n", pos[0], pos[1], pos[2]);
+        }
         return retVec;
     }
 

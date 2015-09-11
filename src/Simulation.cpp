@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cmath>
+#include <limits>
 #include "Simulation.h"
 #include "EventManager.h"
 #include "shape/variant.h"
@@ -36,25 +37,25 @@ public:
         Particle partA = sim_.particles_[pa_idx_];
         Particle partB = sim_.particles_[pb_idx_];
         clam::Vec3d dist = sim_.pbc_.minImage(partB.pos + partB.vel * (sim_.time_ - partB.time) - partA.pos);
-        double max_dist = max_overlap_distance(partA.size, *sim_.shapes_[partA.shape_id], partB.size, *sim_.shapes_[partB.shape_id]);
-        if(dist.length() <= max_dist){
-            double time(0.0);
-            clam::Vec3d relVel = partA.vel - partB.vel;
-            if(overlap::sphere_raycast(max_dist, dist, relVel, time)){
-                //PE_POSSIBLE_COLLISION
-                return ParticleEvent(sim_.time_ + time, pa_idx_, sim_.n_part_ + 1 + pb_idx_, sim_.nCollisions_[pb_idx_]);
-            }
-        }
-        else{
+        //double max_dist = max_overlap_distance(partA.size, *sim_.shapes_[partA.shape_id], partB.size, *sim_.shapes_[partB.shape_id]);
+        //if(dist.length() <= max_dist){
+        //    double time(0.0);
+        //    clam::Vec3d relVel = partA.vel - partB.vel;
+        //    if(overlap::sphere_raycast(max_dist, dist, relVel, time)){
+        //        //PE_POSSIBLE_COLLISION
+        //        return ParticleEvent(sim_.time_ + time, pa_idx_, sim_.n_part_ + 1 + pb_idx_, sim_.nCollisions_[pb_idx_]);
+        //    }
+        //}
+        //else{
             partA.pos = 0.0;
             partB.pos = dist;
             clam::Vec3d relVel = partA.vel - partB.vel;
-            double speed = relVel.length();
-            double time(0.0);
-            if(overlap::gjk_raycast(partA, a, partB, b, relVel / speed, time)){
-                return ParticleEvent(sim_.time_ + time / speed, pa_idx_, pb_idx_ + 1, sim_.nCollisions_[pb_idx_]);
+            double ispeed = 1.0 / relVel.length();
+            double time = 10000.0;
+            if(overlap::gjk_raycast(partA, a, partB, b, relVel * ispeed, time)){
+                if(time > 0.0) return ParticleEvent(sim_.time_ + time * ispeed, pa_idx_, pb_idx_ + 1, sim_.nCollisions_[pb_idx_]);
             }
-        }
+        //}
 
         return ParticleEvent();
     }
@@ -94,7 +95,7 @@ ParticleEvent Simulation::getCellCrossEvent(int pid)const{
 }
 
 void Simulation::updateParticle(int pid){
-    if(particles_[pid].time != time_){
+    if(particles_[pid].time < time_){
         particles_[pid].pos += particles_[pid].vel * (time_ - particles_[pid].time);
         particles_[pid].pos  = pbc_.apply(particles_[pid].pos);
         particles_[pid].time = time_;
@@ -165,8 +166,8 @@ void Simulation::runPossibleCollisionEvent(const ParticleEvent& event){
     }
 
     //should we?
-    updateParticle(pA);
-    updateParticle(pB);
+    //updateParticle(pA);
+    //updateParticle(pB);
 
     {
         Particle partA = particles_[pA];
@@ -175,10 +176,10 @@ void Simulation::runPossibleCollisionEvent(const ParticleEvent& event){
         partA.pos = 0.0;
         partB.pos = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
         clam::Vec3d relVel = partA.vel - partB.vel;
-        double speed = relVel.length();
-        double time(0.0);
-        if(overlap::shape_raycast(partA, *shapes_[partA.shape_id], partB, *shapes_[partA.shape_id], relVel / speed, time)){
-            ParticleEvent event = ParticleEvent(time_ + time / speed, pA, pB + 1, nCollisions_[pB]);
+        double ispeed = 1.0 / relVel.length();
+        double time = 10000.0;
+        if(overlap::shape_raycast(partA, *shapes_[partA.shape_id], partB, *shapes_[partA.shape_id], relVel * ispeed, time)){
+            ParticleEvent event = ParticleEvent(time_ + time * ispeed, pA, pB + 1, nCollisions_[pB]);
             if(event.id_ != PE_NONE) eventManager_.push(pA, event);
         }
     }
@@ -209,8 +210,11 @@ bool Simulation::init(void){
 
     //Initialize cell list
     double max_radius = 0.0;
-    for(auto particle: particles_) max_radius = std::max(max_radius, particle.size);
-    cll_.init(n_part_, pbc_.getSize(), 2.0 * max_radius);
+    for(auto particle: particles_){
+        double outradius = particle.size * boost::apply_visitor(ShapeOutRadiusVisitor(), *shapes_[particle.shape_id]);
+        max_radius = std::max(max_radius, outradius);
+    }
+    cll_.init(n_part_, pbc_.getSize(), 2.0 * max_radius + 0.01);
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
