@@ -22,7 +22,7 @@
 class Simulation{
 public:
     Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles, std::vector<shape::Variant*>&& shapes):
-        nSpheres_(particles.size()), n_shapes_(shapes.size()), time_(0.0),
+        n_part_(particles.size()), n_shapes_(shapes.size()), time_(0.0),
         pbc_(pbc), particles_(particles), shapes_(shapes), systemVelocity_(0.0)
     {
         mtGen_.seed(time(NULL));
@@ -32,7 +32,7 @@ public:
     bool init(void);
 
     int getNumParticles(void)const{
-        return nSpheres_;
+        return n_part_;
     }
     const std::vector<Particle>& getParticles(void)const{
         return particles_;
@@ -49,9 +49,10 @@ private:
     ParticleEvent getCellCrossEvent(int pid)const;
     void runCollisionEvent(const ParticleEvent& event);
     void runCellCrossEvent(const ParticleEvent& event);
+    void runPossibleCollisionEvent(const ParticleEvent& event);
     void updateParticle(int pid);
 
-    int    nSpheres_;
+    int    n_part_;
     int    n_shapes_;
     double time_;
 
