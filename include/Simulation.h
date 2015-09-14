@@ -58,7 +58,7 @@ private:
 
     CubicPBC pbc_;
 
-    std::vector<int> nCollisions_;
+    std::vector<uint32_t> nCollisions_;
     std::vector<Particle> particles_;
     std::vector<shape::Variant*> shapes_;
     clam::Vec3d systemVelocity_;

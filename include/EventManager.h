@@ -36,7 +36,7 @@ private:
     void processOverflowList(void);
 //Members
 private:
-    typedef BinaryHeap<ParticleEvent, ParticleEventLess> PEL;
+    typedef BinaryHeap<ParticleEvent> PEL;
     std::vector<PEL> events_;
 
     //Priority queue vars

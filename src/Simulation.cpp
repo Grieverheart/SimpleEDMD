@@ -43,7 +43,7 @@ public:
         //    clam::Vec3d relVel = partA.vel - partB.vel;
         //    if(overlap::sphere_raycast(max_dist, dist, relVel, time)){
         //        //PE_POSSIBLE_COLLISION
-        //        return ParticleEvent(sim_.time_ + time, pa_idx_, sim_.n_part_ + 1 + pb_idx_, sim_.nCollisions_[pb_idx_]);
+        //        return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
         //    }
         //}
         //else{
@@ -53,11 +53,11 @@ public:
             double ispeed = 1.0 / relVel.length();
             double time = 10000.0;
             if(overlap::gjk_raycast(partA, a, partB, b, relVel * ispeed, time)){
-                if(time > 0.0) return ParticleEvent(sim_.time_ + time * ispeed, pa_idx_, pb_idx_ + 1, sim_.nCollisions_[pb_idx_]);
+                if(time > 0.0) return ParticleEvent::Collision(sim_.time_ + time * ispeed, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
             }
         //}
 
-        return ParticleEvent();
+        return ParticleEvent::None();
     }
 
 private:
@@ -76,9 +76,9 @@ inline ParticleEvent Simulation::ShapeCollisionEventVisitor::operator()(const sh
 
     double time(0.0);
     if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius(), dist, relVel, time)){
-        return ParticleEvent(sim_.time_ + time, pa_idx_, pb_idx_ + 1, sim_.nCollisions_[pb_idx_]);
+        return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
     }
-    else return ParticleEvent();
+    else return ParticleEvent::None();
 }
 
 ParticleEvent Simulation::getCollisionEvent(int pA, int pB)const{
@@ -91,7 +91,7 @@ ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     double time(0.0);
     clam::Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
     int cellOffset = overlap::cell_raycast(cll_.getCellSize(), rpos, particles_[pid].vel, time);
-    return ParticleEvent(time + time_, pid, cellOffset + 2 * n_part_ + 1);
+    return ParticleEvent::CellCross(time + time_, pid, cellOffset);
 }
 
 void Simulation::updateParticle(int pid){
@@ -105,7 +105,7 @@ void Simulation::updateParticle(int pid){
 //NOTE: For simplicity, for now we assume equal mass spheres
 void Simulation::runCollisionEvent(const ParticleEvent& event){
     int pA = event.pid_;
-    int pB = event.id_ - 1;
+    int pB = event.get_id();
 
     if(nCollisions_[pB] != event.optional_){
         eventManager_.update(pA);
@@ -136,7 +136,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
             if(n != pA && n != pB){
                 //updateParticle(n);
                 auto event = getCollisionEvent(pA, n);
-                if(event.id_ != PE_NONE) eventManager_.push(pA, event);
+                if(event.get_type() != PE_NONE) eventManager_.push(pA, event);
             }
         }
     }
@@ -145,7 +145,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
             if(n != pA && n != pB){
                 //updateParticle(n);
                 auto event = getCollisionEvent(pB, n);
-                if(event.id_ != PE_NONE) eventManager_.push(pB, event);
+                if(event.get_type() != PE_NONE) eventManager_.push(pB, event);
             }
         }
     }
@@ -158,7 +158,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
 
 void Simulation::runPossibleCollisionEvent(const ParticleEvent& event){
     int pA = event.pid_;
-    int pB = event.id_  - n_part_ - 1;
+    int pB = event.get_id();
 
     if(nCollisions_[pB] != event.optional_){
         eventManager_.update(pA);
@@ -179,22 +179,22 @@ void Simulation::runPossibleCollisionEvent(const ParticleEvent& event){
         double ispeed = 1.0 / relVel.length();
         double time = 10000.0;
         if(overlap::shape_raycast(partA, *shapes_[partA.shape_id], partB, *shapes_[partA.shape_id], relVel * ispeed, time)){
-            ParticleEvent event = ParticleEvent(time_ + time * ispeed, pA, pB + 1, nCollisions_[pB]);
-            if(event.id_ != PE_NONE) eventManager_.push(pA, event);
+            ParticleEvent event = ParticleEvent::Collision(time_ + time * ispeed, pA, pB, nCollisions_[pB]);
+            if(event.get_id() != PE_NONE) eventManager_.push(pA, event);
         }
     }
 }
 
 void Simulation::runCellCrossEvent(const ParticleEvent& event){
     int pid     = event.pid_;
-    int coffset = event.id_ - 2 * n_part_ - 1;
+    int coffset = event.get_id();
     cll_.move(pid, coffset);
     updateParticle(pid);
     for(int cid: cll_.getDirNeighbourIterator(pid, coffset)){
         for(int n: cll_.getCellIterator(cid)){
             //updateParticle(n);
             auto event = getCollisionEvent(pid, n);
-            if(event.id_ != PE_NONE) eventManager_.push(pid, event);
+            if(event.get_id() != PE_NONE) eventManager_.push(pid, event);
         }
     }
     eventManager_.push(pid, getCellCrossEvent(pid));
@@ -240,7 +240,7 @@ bool Simulation::init(void){
             for(int j: cll_.getCellIterator(cid)){
                 if(i != j){
                     auto event = getCollisionEvent(i, j);
-                    if(event.id_ != PE_NONE) eventManager_.push(i, event);
+                    if(event.get_id() != PE_NONE) eventManager_.push(i, event);
                 }
             }
         }
@@ -262,7 +262,7 @@ void Simulation::run(double endTime, PeriodicCallback& outputCondition){
         time_ = nextEvent.time_;
         //printf("%.16lf\n", time_);
 
-        switch(nextEvent.getType(n_part_)){
+        switch(nextEvent.get_type()){
         case PE_COLLISION:
             ++nEvents;
             runCollisionEvent(nextEvent);

@@ -3,10 +3,11 @@
 
 #include <vector>
 #include <utility>
+#include <functional>
 
 //FUTURE: Add iterators for iterating over tree elements
 
-template<class T, class Compare>
+template< class T, class Compare = std::less<T> >
 class BinaryHeap{
 public:
     BinaryHeap(void){
