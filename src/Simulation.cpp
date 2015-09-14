@@ -37,25 +37,26 @@ public:
         Particle partA = sim_.particles_[pa_idx_];
         Particle partB = sim_.particles_[pb_idx_];
         clam::Vec3d dist = sim_.pbc_.minImage(partB.pos + partB.vel * (sim_.time_ - partB.time) - partA.pos);
-        //double max_dist = max_overlap_distance(partA.size, *sim_.shapes_[partA.shape_id], partB.size, *sim_.shapes_[partB.shape_id]);
-        //if(dist.length() <= max_dist){
-        //    double time(0.0);
-        //    clam::Vec3d relVel = partA.vel - partB.vel;
-        //    if(overlap::sphere_raycast(max_dist, dist, relVel, time)){
-        //        //PE_POSSIBLE_COLLISION
-        //        return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
-        //    }
-        //}
-        //else{
+        double max_dist = max_overlap_distance(partA.size, *sim_.shapes_[partA.shape_id], partB.size, *sim_.shapes_[partB.shape_id]);
+        if(dist.length() > max_dist){
+            double time(0.0);
+            clam::Vec3d relVel = partA.vel - partB.vel;
+            if(overlap::sphere_raycast(max_dist, dist, relVel, time)){
+                //PE_POSSIBLE_COLLISION
+                return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
+            }
+        }
+        else{
             partA.pos = 0.0;
             partB.pos = dist;
             clam::Vec3d relVel = partA.vel - partB.vel;
             double ispeed = 1.0 / relVel.length();
             double time = 10000.0;
-            if(overlap::gjk_raycast(partA, a, partB, b, relVel * ispeed, time)){
-                if(time > 0.0) return ParticleEvent::Collision(sim_.time_ + time * ispeed, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
+            clam::Vec3d normal;
+            if(overlap::gjk_raycast(partA, a, partB, b, relVel * ispeed, time, normal)){
+                if(time > 0.0) return ParticleEvent::Collision(sim_.time_ + time * ispeed, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_], normal);
             }
-        //}
+        }
 
         return ParticleEvent::None();
     }
@@ -75,8 +76,9 @@ inline ParticleEvent Simulation::ShapeCollisionEventVisitor::operator()(const sh
     clam::Vec3d relVel = partA.vel - partB.vel;
 
     double time(0.0);
-    if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius(), dist, relVel, time)){
-        return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
+    clam::Vec3d normal;
+    if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius(), dist, relVel, time, &normal)){
+        return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_], normal);
     }
     else return ParticleEvent::None();
 }
@@ -117,8 +119,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
 
     {
         clam::Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
-        clam::Vec3d relPos   = pbc_.minImage(particles_[pA].pos - particles_[pB].pos);
-        clam::Vec3d deltaVel = relPos * (clam::dot(relPos, relVel) / clam::dot(relPos, relPos));
+        clam::Vec3d deltaVel = event.normal_ * clam::dot(event.normal_, relVel);
 
         particles_[pA].vel -= deltaVel;
         particles_[pB].vel += deltaVel;
@@ -160,29 +161,29 @@ void Simulation::runPossibleCollisionEvent(const ParticleEvent& event){
     int pA = event.pid_;
     int pB = event.get_id();
 
+
     if(nCollisions_[pB] != event.optional_){
         eventManager_.update(pA);
         return;
     }
 
-    //should we?
-    //updateParticle(pA);
-    //updateParticle(pB);
-
     {
         Particle partA = particles_[pA];
         Particle partB = particles_[pB];
 
+        partB.pos = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos - partA.vel * (time_ - partA.time));
         partA.pos = 0.0;
-        partB.pos = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
         clam::Vec3d relVel = partA.vel - partB.vel;
         double ispeed = 1.0 / relVel.length();
         double time = 10000.0;
-        if(overlap::shape_raycast(partA, *shapes_[partA.shape_id], partB, *shapes_[partA.shape_id], relVel * ispeed, time)){
-            ParticleEvent event = ParticleEvent::Collision(time_ + time * ispeed, pA, pB, nCollisions_[pB]);
-            if(event.get_id() != PE_NONE) eventManager_.push(pA, event);
+        clam::Vec3d normal;
+        if(overlap::shape_raycast(partA, *shapes_[partA.shape_id], partB, *shapes_[partB.shape_id], relVel * ispeed, time, normal)){
+            ParticleEvent event = ParticleEvent::Collision(time_ + time * ispeed, pA, pB, nCollisions_[pB], normal);
+            eventManager_.push(pA, event);
         }
     }
+
+    eventManager_.update(pA);
 }
 
 void Simulation::runCellCrossEvent(const ParticleEvent& event){

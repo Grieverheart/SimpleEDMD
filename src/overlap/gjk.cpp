@@ -526,7 +526,8 @@ namespace overlap{
     bool gjk_raycast(
         const Particle& pa, const shape::Convex& a,
         const Particle& pb, const shape::Convex& b,
-        const Vec3d& ray_dir, double& distance
+        const Vec3d& ray_dir, double& distance,
+        clam::Vec3d& normal
     )
     {
         Vec3d dir = pb.pos - pa.pos;
@@ -567,10 +568,12 @@ namespace overlap{
 
             if(S.size() == 4){
                 distance = lambda;
+                normal = dir / dir.length();
                 return true;
             }
         }
         distance = lambda;
+        normal = dir / dir.length();
         ///printf("Encountered error in GJK raycast: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         //auto test = pb.pos - pa.pos;
         //for(int i = 0; i < n_ls; ++i) printf("%f, %f, %f\n", lambdas[i][0], lambdas[i][1], lambdas[i][2]);

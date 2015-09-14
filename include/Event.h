@@ -3,10 +3,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include "clam.h"
 
-//TODO: Consider using boost::variant, it should give better performance
-//Or perhaps use two highest bits for type and rest for data!!!
 enum ParticleEventType{
     PE_NONE               = 0,
     PE_COLLISION          = 1,
@@ -29,14 +28,15 @@ public:
         return ParticleEvent();
     }
 
-    static inline ParticleEvent Collision(double time, int pid, int id, int optional){
-        auto event = ParticleEvent(PE_COLLISION, time, pid, id);
+    static inline ParticleEvent Collision(double time, int pid, int id, int optional, clam::Vec3d normal){
+        ParticleEvent event(PE_COLLISION, time, pid, id);
         event.optional_ = optional;
+        event.normal_ = normal;
         return event;
     }
 
     static inline ParticleEvent PossibleCollision(double time, int pid, int id, int optional){
-        auto event = ParticleEvent(PE_POSSIBLE_COLLISION, time, pid, id);
+        ParticleEvent event(PE_POSSIBLE_COLLISION, time, pid, id);
         event.optional_ = optional;
         return event;
     }
@@ -44,8 +44,6 @@ public:
     static inline ParticleEvent CellCross(double time, int pid, int id){
         return ParticleEvent(PE_CELLCROSS, time, pid, id);
     }
-
-    ~ParticleEvent(void){};
 
     int get_type(void){
         return (id_ >> 29);
@@ -61,11 +59,12 @@ public:
 
     //Essential data
     double time_;
-    int32_t pid_;
-    int32_t id_;
+    uint32_t pid_, id_;
 
     //Data needed for collision events.
     uint32_t optional_;
+    //TODO: Make this a pointer for saving space
+    clam::Vec3d normal_;
 };
 
 #endif

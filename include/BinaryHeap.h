@@ -65,7 +65,7 @@ public:
 
         data_.erase(data_.end() - 1);
 
-        return std::move(ret_val);
+        return ret_val;
     }
 
 private:

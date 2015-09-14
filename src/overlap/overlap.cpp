@@ -59,13 +59,13 @@ namespace overlap{
 
         class ShapeRaycastVisitor: public boost::static_visitor<bool> {
         public:
-            ShapeRaycastVisitor(const Particle& pa, const Particle& pb, const clam::Vec3d& ray_dir, double& distance):
-                pa_(pa), pb_(pb), ray_dir_(ray_dir), dist_(distance)
+            ShapeRaycastVisitor(const Particle& pa, const Particle& pb, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal):
+                pa_(pa), pb_(pb), ray_dir_(ray_dir), dist_(distance), normal_(normal)
             {}
 
             template<typename T, typename U>
             bool operator()(const T& a, const U& b)const{
-                return gjk_raycast(pa_, a, pb_, b, ray_dir_, dist_);
+                return gjk_raycast(pa_, a, pb_, b, ray_dir_, dist_, normal_);
             }
 
         private:
@@ -73,11 +73,12 @@ namespace overlap{
             const Particle& pb_;
             const clam::Vec3d& ray_dir_;
             double& dist_;
+            clam::Vec3d& normal_;
         };
 
         template<>
         inline bool ShapeRaycastVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            return sphere_raycast(pa_.size * a.radius() + pb_.size * b.radius(), pa_.pos - pb_.pos, ray_dir_, dist_);
+            return sphere_raycast(pa_.size * a.radius() + pb_.size * b.radius(), pa_.pos - pb_.pos, ray_dir_, dist_, &normal_);
         }
     }//namespace detail
 
@@ -89,8 +90,8 @@ namespace overlap{
         return boost::apply_visitor(ShapeOverlapVisitor(pa, pb, feather), a, b);
     }
 
-    bool shape_raycast(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b, const clam::Vec3d& ray_dir, double& distance){
-        return boost::apply_visitor(ShapeRaycastVisitor(pa, pb, ray_dir, distance), a, b);
+    bool shape_raycast(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal){
+        return boost::apply_visitor(ShapeRaycastVisitor(pa, pb, ray_dir, distance, normal), a, b);
     }
 
 }
