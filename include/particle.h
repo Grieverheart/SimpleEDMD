@@ -12,6 +12,7 @@ struct Particle{
     clam::Vec3d pos;
     clam::Quatd rot;
     clam::Vec3d vel;
+    clam::Vec3d ang_vel;
     size_t shape_id;
 };
 

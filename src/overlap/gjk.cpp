@@ -460,7 +460,7 @@ namespace overlap{
 
     };//namespace
 
-    double gjk_distance(
+    Vec3d gjk_distance(
         const Particle& pa, const shape::Convex& a,
         const Particle& pb, const shape::Convex& b
     ){
@@ -482,7 +482,7 @@ namespace overlap{
             //The condition is correct, it can be derived from |v|^2 - v . w < |v|^2 * eps
             //Seems like -1.0e-10 is also ok, but should make sure.
             if(S.contains(new_point) || dot(dir, new_point) - dot(dir, last) < -1.0e-10 * dot(dir, last)){
-                return -dot(dir, last) / dir.length();
+                return dir * (dot(dir, last) / dir.length2());
             }
 
             S.add_point(new_point);

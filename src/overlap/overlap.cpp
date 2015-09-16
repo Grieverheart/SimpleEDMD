@@ -8,14 +8,14 @@ namespace overlap{
 
     namespace{
 
-        class ShapeDistanceVisitor: public boost::static_visitor<double> {
+        class ShapeDistanceVisitor: public boost::static_visitor<clam::Vec3d> {
         public:
             ShapeDistanceVisitor(const Particle& pa, const Particle& pb):
                 pa_(pa), pb_(pb)
             {}
 
             template<typename T, typename U>
-            double operator()(const T& a, const U& b)const{
+            clam::Vec3d operator()(const T& a, const U& b)const{
                 return gjk_distance(pa_, a, pb_, b);
             }
 
@@ -25,8 +25,8 @@ namespace overlap{
         };
 
         template<>
-        inline double ShapeDistanceVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            return (pb_.pos - pa_.pos).length() - pa_.size * a.radius() - pb_.size * b.radius();
+        inline clam::Vec3d ShapeDistanceVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
+            return pb_.pos - pa_.pos - pa_.size * a.radius() - pb_.size * b.radius();
         }
 
         //TODO: Move to separate header file
@@ -82,7 +82,7 @@ namespace overlap{
         }
     }//namespace detail
 
-    double shape_distance(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b){
+    clam::Vec3d shape_distance(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b){
         return boost::apply_visitor(ShapeDistanceVisitor(pa, pb), a, b);
     }
 
