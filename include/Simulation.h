@@ -23,9 +23,10 @@ class Simulation{
 public:
     Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles, std::vector<shape::Variant*>&& shapes):
         n_part_(particles.size()), n_shapes_(shapes.size()), time_(0.0),
+        closest_distance_tol2_(1.0e-12),
         pbc_(pbc), particles_(particles), shapes_(shapes), systemVelocity_(0.0)
     {
-        mtGen_.seed(time(NULL));
+        mtGen_.seed(0);//time(NULL));
     }
 
     void run(double endTime, PeriodicCallback& outputCondition);
@@ -55,6 +56,7 @@ private:
     int    n_part_;
     int    n_shapes_;
     double time_;
+    double closest_distance_tol2_;
 
     CubicPBC pbc_;
 

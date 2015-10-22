@@ -26,6 +26,34 @@ namespace{
     }
 }
 
+static inline double shape_outradius(const shape::Variant& shape){
+    return boost::apply_visitor(ShapeOutRadiusVisitor(), shape);
+}
+
+void stream_position(Particle& particle, double time){
+    particle.pos += particle.vel * (time - particle.time);
+}
+
+void stream_rotation(Particle& particle, double time){
+    double ang_vel_abs = particle.ang_vel.length();
+    if(ang_vel_abs > 0.0){
+        particle.rot = clam::fromAxisAngle(
+            ang_vel_abs * (time - particle.time),
+            particle.ang_vel / ang_vel_abs
+        ) * particle.rot;
+    }
+}
+
+//static void print_particle(const Particle& p){
+//    printf("pos: glm::vec3(%f, %f, %f)\n", p.pos[0], p.pos[1], p.pos[2]);
+//    clam::Vec3d axis;
+//    double angle;
+//    p.rot.toAxisAngle(angle, axis);
+//    printf("rot: %f, glm::vec3(%f, %f, %f)\n", angle, axis[0], axis[1], axis[2]);
+//    printf("vel: glm::vec3(%f, %f, %f)\n", p.vel[0], p.vel[1], p.vel[2]);
+//    printf("ang_vel: glm::vec3(%f, %f, %f)\n", p.ang_vel[0], p.ang_vel[1], p.ang_vel[2]);
+//}
+
 class Simulation::ShapeCollisionEventVisitor: public boost::static_visitor<ParticleEvent> {
 public:
     ShapeCollisionEventVisitor(const Simulation& sim, int pa_idx, int pb_idx):
@@ -47,14 +75,44 @@ public:
             }
         }
         else{
-            partA.pos = 0.0;
-            partB.pos = dist;
-            clam::Vec3d relVel = partA.vel - partB.vel;
-            double ispeed = 1.0 / relVel.length();
-            double time = 10000.0;
-            clam::Vec3d normal;
-            if(overlap::gjk_raycast(partA, a, partB, b, relVel * ispeed, time, normal)){
-                if(time > 0.0) return ParticleEvent::Collision(sim_.time_ + time * ispeed, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_], normal);
+            double time(0.0);
+
+            partB.pos  = dist;
+            partB.vel  = partB.vel - partA.vel;
+            partB.time = 0.0;
+            partA.pos  = 0.0;
+            partA.vel  = 0.0;
+            partA.time = 0.0;
+
+            double out_radius_A = partA.size * shape_outradius(a);
+            double out_radius_B = partB.size * shape_outradius(b);
+
+            while(true){
+                clam::Vec3d shortest_dist = overlap::gjk_distance(partA, a, partB, b);
+                clam::Vec3d shortest_dist_n = shortest_dist / shortest_dist.length();
+                double max_vel = clam::dot(shortest_dist_n, partB.vel) +
+                                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
+                double max_advance = shortest_dist.length() / max_vel;
+                max_advance -= 1.0e-8; //@note: We need to subtract a small amount to avoid overlapping.
+
+                //No collision.
+                if(max_advance < 0.0) break;
+
+                if(shortest_dist.length2() < sim_.closest_distance_tol2_){
+                    //@note: We could avoid calculating closest points and call closest_points
+                    //once when we process the event. Do that first, and then we can check how
+                    //to modify the event structure to accomondate the contact information.
+                    //
+                    //clam::Vec3d pa, pb;
+                    //overlap::gjk_closest_points(partA, a, partB, b, pa, pb);
+                    return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_], shortest_dist);
+                }
+                time += max_advance;
+                stream_position(partB, time);
+                stream_rotation(partB, time);
+                stream_rotation(partA, time);
+                partB.time = time;
+                partA.time = time;
             }
         }
 
@@ -96,10 +154,12 @@ ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     return ParticleEvent::CellCross(time + time_, pid, cellOffset);
 }
 
+//TODO: We want to make this more general, and not a member function. e.g. it should take the
+//particle, time, and the boundary condition as arguments.
 void Simulation::updateParticle(int pid){
     if(particles_[pid].time < time_){
-        particles_[pid].pos += particles_[pid].vel * (time_ - particles_[pid].time);
-        particles_[pid].pos  = pbc_.apply(particles_[pid].pos);
+        stream_position(particles_[pid], time_);
+        stream_rotation(particles_[pid], time_);
         particles_[pid].time = time_;
     }
 }
@@ -117,7 +177,12 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
     updateParticle(pA);
     updateParticle(pB);
 
+    //Resolve collision.
     {
+        //TODO: Here we need a function that gets us contact information.
+        //It's nice to do it here because we save space on events, and
+        //we can also immediately check if the event is valid due to 
+        //precision problems.
         clam::Vec3d relVel   = particles_[pA].vel - particles_[pB].vel;
         clam::Vec3d deltaVel = event.normal_ * clam::dot(event.normal_, relVel);
 
@@ -141,6 +206,7 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
             }
         }
     }
+
     for(int cid: cll_.getNeighbourIterator(pB)){
         for(int n: cll_.getCellIterator(cid)){
             if(n != pA && n != pB){
@@ -235,6 +301,17 @@ bool Simulation::init(void){
     }
     systemVelocity_ = systemVelocity_ * (1.0 / n_part_);
 
+    for(int i = 0; i < n_part_; ++i){
+        for(int j = i + 1; j < n_part_; ++j){
+            auto partA = particles_[i];
+            auto partB = particles_[j];
+            partB.pos = pbc_.minImage(partB.pos + partB.vel * (time_ - partB.time) - partA.pos);
+            partA.pos = 0.0;
+            auto distance = overlap::shape_distance(partA, *shapes_[particles_[i].shape_id], partB, *shapes_[particles_[j].shape_id]);
+            if(distance.length() <= 0.0) printf("%d, %d\n", i, j);
+        }
+    }
+
     //Find initial collision events
     for(int i = 0; i < n_part_; ++i){
         for(int cid: cll_.getNeighbourIterator(i)){
@@ -249,6 +326,20 @@ bool Simulation::init(void){
         eventManager_.push(i, event);
     }
     eventManager_.init();
+
+
+    //auto partA = particles_[1279];
+    //auto partB = particles_[855];
+    //auto a = *shapes_[partA.shape_id];
+    //auto b = *shapes_[partB.shape_id];
+
+    //printf("partA: %d\n", 1279);
+    //print_particle(partA);
+    //printf("partB: %d\n", 855);
+    //print_particle(partB);
+
+    //clam::Vec3d shortest_dist = overlap::shape_distance(partA, a, partB, b);
+    //printf("== %e ==\n", shortest_dist.length());
 
     return true;
 }

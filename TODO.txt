@@ -1,4 +1,7 @@
-Implement parallel polyhedra.
-Implement rotating polyhedra.
+--Implement parallel polyhedra.
+--Implement rotating polyhedra.
+Implement conservative advancement.
+Implement closest points function.
+Implement collision resolution.
 Implement hard walls.
 Implement NPT.

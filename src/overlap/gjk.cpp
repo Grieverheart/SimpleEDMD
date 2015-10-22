@@ -26,7 +26,7 @@ namespace overlap{
         class Simplex{
         public:
             Simplex(void):
-                max_vert2(0.0), bits_(0), last_sb_(0), size_(0)
+                bits_(0), last_sb_(0), size_(0), max_vert2(0.0)
             {}
 
             uchar size(void)const{
@@ -43,6 +43,12 @@ namespace overlap{
                 p_[pos] = point;
                 double l2 = point.length2();
                 if(l2 > max_vert2) max_vert2 = l2;
+            }
+
+            void add_point(const Vec3d& point, const Vec3d& pa, const Vec3d& pb){
+                add_point(point);
+                a_[last_sb_] = pa;
+                b_[last_sb_] = pb;
             }
 
             void remove_point(int p){
@@ -95,12 +101,13 @@ namespace overlap{
             bool contains_origin(Vec3d& dir);
 
         private:
-            Vec3d p_[4];//up to 4 points / 3-Simplex
-            //Vec3d diffs_[4];
-            double max_vert2;
             uchar bits_;
             uchar last_sb_;
             uchar size_;
+            Vec3d p_[4]; //up to 4 points / 3-Simplex
+            Vec3d a_[4]; //up to 4 points / 3-Simplex
+            Vec3d b_[4]; //up to 4 points / 3-Simplex
+            double max_vert2;
         };
 
         inline void Simplex::closest(Vec3d& dir){
@@ -488,7 +495,7 @@ namespace overlap{
             S.add_point(new_point);
 
             S.closest(dir);
-            if(S.size() == 4) return 0.0;
+            if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
         }
 
         printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);

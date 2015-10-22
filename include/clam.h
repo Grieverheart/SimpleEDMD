@@ -311,7 +311,7 @@ namespace clam{
         void toAxisAngle(T& angle, Vec3<T>& axis)const{
             if(w_ * w_ < 1.0){
                 T s = 1.0 / sqrt(1.0 - w_ * w_);
-                angle = 360.0 * acos(w_) / M_PI;
+                angle = 2.0 * acos(w_);
                 axis = s * v_;
                 axis /= axis.length();
             }
@@ -321,6 +321,11 @@ namespace clam{
             }
         }
     };
+
+    template<typename T>
+    Quat<T> fromAxisAngle(T angle, const clam::Vec3<T>& axis){
+        return Quat<T>(sin(0.5 * angle) * axis, cos(0.5 * angle));
+    }
 
     template<typename T, typename F = T(void)>
     Vec3<T> uniform_vector(F gen_rand){
@@ -348,6 +353,7 @@ namespace clam{
         }
         T sina = sin(angle * 0.5);
 
+        //TODO: Use fromAxisAngle.
         return Quat<T>(
             uniform_vector<T, F>(gen_rand) * sina,
             cos(0.5 * angle)
