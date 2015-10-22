@@ -90,6 +90,73 @@ namespace overlap{
                 }
             }
 
+
+            void compute_closest_points(const Vec3d& P, Vec3d& pa, Vec3d& pb){
+                switch(size_){
+                case 1:{
+                    pa = a_[last_sb_];
+                    pb = b_[last_sb_];
+                    break;
+                }
+                case 2:{
+                    const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
+                    const Vec3d& aA = a_[last_sb_];
+                    const Vec3d& aB = a_[pos[0]];
+                    const Vec3d& bA = b_[last_sb_];
+                    const Vec3d& bB = b_[pos[0]];
+                    double u, v;
+                    {
+                        const Vec3d& A = p_[last_sb_];
+                        const Vec3d& B = p_[pos[0]];
+
+                        auto AB = B - A;
+                        v = dot(AB, P - A) / AB.length2();
+                        u = 1.0 - v;
+                    }
+
+                    pa = aA * u + aB * v;
+                    pb = bA * u + bB * v;
+
+                    break;
+                }
+                case 3:{
+                    const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
+                    const Vec3d& aA = a_[last_sb_];
+                    const Vec3d& aB = a_[pos[0]];
+                    const Vec3d& aC = a_[pos[1]];
+                    const Vec3d& bA = b_[last_sb_];
+                    const Vec3d& bB = b_[pos[0]];
+                    const Vec3d& bC = b_[pos[1]];
+                    double u, v, w;
+                    {
+                        const Vec3d& A = p_[last_sb_];
+                        const Vec3d& B = p_[pos[0]];
+                        const Vec3d& C = p_[pos[1]];
+
+                        auto v0 = B - A, v1 = C - A, v2 = P - A;
+
+                        double d00 = dot(v0, v0);
+                        double d01 = dot(v0, v1);
+                        double d11 = dot(v1, v1);
+                        double d20 = dot(v2, v0);
+                        double d21 = dot(v2, v1);
+                        double denom = d00 * d11 - d01 * d01;
+
+                        v = (d11 * d20 - d01* d21) / denom;
+                        w = (d00 * d21 - d01* d20) / denom;
+                        u = 1.0 - v - w;
+                    }
+
+                    pa = aA * u + aB * v + aC * w;
+                    pb = bA * u + bB * v + bC * w;
+                    break;
+                }
+                default:
+                break;
+                }
+            }
+            
+
             void print(void)const{
                 uchar bits = bits_;
                 for(int i = 0; i < 4; ++i, bits >>= 1){
@@ -495,6 +562,46 @@ namespace overlap{
             S.add_point(new_point);
 
             S.closest(dir);
+            if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
+        }
+
+        printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
+        return 0.0;
+    }
+
+    double gjk_closest_points(
+        const Particle& pa, const shape::Convex& a,
+        const Particle& pb, const shape::Convex& b,
+        Vec3d& point_on_a, Vec3d& point_on_b
+    ){
+        auto dir = Vec3d(0.0);
+        //auto dir = pb.pos - pa.pos;
+        Simplex S;
+
+        uint fail_safe = 0;
+
+        auto inv_rot_a = pa.rot.inv();
+        auto inv_rot_b = pb.rot.inv();
+
+        while(fail_safe++ < 20){
+            auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
+            auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
+            Vec3d new_point = vertex_a - vertex_b;
+
+            const Vec3d& last = S.get_last_point();
+            //The condition is correct, it can be derived from |v|^2 - v . w < |v|^2 * eps
+            //Seems like -1.0e-10 is also ok, but should make sure.
+            if(S.contains(new_point) || dot(dir, new_point) - dot(dir, last) < -1.0e-10 * dot(dir, last)){
+                auto dist_vec = dir * (dot(dir, last) / dir.length2());
+                S.compute_closest_points(dist_vec, point_on_a, point_on_b);
+                return dist_vec.length();
+            }
+
+            S.add_point(new_point, vertex_a, vertex_b);
+
+            S.closest(dir);
+
+            //Overlapping!
             if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
         }
 
