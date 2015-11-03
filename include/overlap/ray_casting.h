@@ -81,13 +81,14 @@ namespace overlap{
     inline int cell_raycast(const clam::Vec3d& cellSize, const clam::Vec3d& rpos, const clam::Vec3d& dir, double& t){
         //NOTE: Check for +-0
         t = (dir[0] < 0.0)? -rpos[0] / dir[0]: (cellSize[0] - rpos[0]) / dir[0];
-        int cellOffset = !(dir[0] < 0.0);
+        int cellOffset = (dir[0] < 0.0);
         for(int i = 1; i < 3; ++i){
             bool isNegative = (dir[i] < 0.0);
             double dt = isNegative? -rpos[i] / dir[i]: (cellSize[i] - rpos[i]) / dir[i];
+            assert(dt > 0.0);
             if(dt < t){
                 t = dt;
-                cellOffset = 2 * i + !isNegative;
+                cellOffset = 2 * i + isNegative;
             }
         }
         return cellOffset;

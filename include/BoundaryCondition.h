@@ -2,6 +2,7 @@
 #define __BOUNDARY_CONDITION_H
 
 #include "clam.h"
+#include <cassert>
 
 class CubicPBC{
 public:
@@ -28,6 +29,10 @@ public:
         retVec[2] = vec[2] - m * boxSize_;
         m = retVec[2] * iBoxSize2_;
         retVec[2] = retVec[2] - m * boxSize_;
+
+        assert((retVec[0] < 0.5 * boxSize_) && (retVec[0] > -0.5 * boxSize_));
+        assert((retVec[1] < 0.5 * boxSize_) && (retVec[1] > -0.5 * boxSize_));
+        assert((retVec[2] < 0.5 * boxSize_) && (retVec[2] > -0.5 * boxSize_));
     
         return retVec;
     }
@@ -39,12 +44,14 @@ public:
         //retVec[2] = pos[2] - int(pos[2] * iBoxSize2_ - 1.0) * boxSize_;
         for(int i = 0; i < 3; ++i){
             retVec[i] = pos[i];
-            while(retVec[i] >= boxSize_) retVec[i] -= boxSize_;
             while(retVec[i] < 0.0) retVec[i] += boxSize_;
+            while(retVec[i] >= boxSize_) retVec[i] -= boxSize_;
         }
-        if(retVec[0] < 0.0 || retVec[1] < 0.0 || retVec[2] < 0.0){
-            printf("%f, %f, %f\n", pos[0], pos[1], pos[2]);
-        }
+
+        assert((retVec[0] < boxSize_) && (retVec[0] >= 0.0));
+        assert((retVec[1] < boxSize_) && (retVec[1] >= 0.0));
+        assert((retVec[2] < boxSize_) && (retVec[2] >= 0.0));
+
         return retVec;
     }
 

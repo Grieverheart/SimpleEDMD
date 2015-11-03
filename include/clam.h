@@ -284,10 +284,10 @@ namespace clam{
         }
 
         Quat<T> operator-=(const Quat<T>& other){
-            v_[0] += other.v_[0];
-            v_[1] += other.v_[1];
-            v_[2] += other.v_[2];
-            w_ += other.w_;
+            v_[0] -= other.v_[0];
+            v_[1] -= other.v_[1];
+            v_[2] -= other.v_[2];
+            w_ -= other.w_;
             return *this;
         }
 

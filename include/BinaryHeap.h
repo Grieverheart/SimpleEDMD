@@ -29,6 +29,10 @@ public:
         data_.push_back(T());
     }
 
+    size_t size(void){
+        return data_.size() - 1;
+    }
+
     bool empty(void)const{
         return (data_.size() < 2);
     }

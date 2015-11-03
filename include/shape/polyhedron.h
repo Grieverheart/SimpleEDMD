@@ -79,7 +79,6 @@ namespace shape{
         return vertices_[curr];
         //using idx_t = std::vector<unsigned int>::size_type;
         //unsigned int next = 0, last = 0, curr = 0;
-        //idx_t curr = 0;
         //double p = 0.0;
         //double max = clam::dot(vertices_[0], dir);
         //for(;;){

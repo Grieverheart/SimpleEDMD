@@ -98,11 +98,21 @@ void saveConfig(const char* filename, double time, const Simulation& sim){
         clam::Vec3d pos(particles[i].pos);
         pos += particles[i].vel * (time - particles[i].time) - sim.getSystemVelocity() * time;
         pos  = pbc.apply(pos);
+        clam::Quatd rot = particles[i].rot;
+        {
+            double ang_vel_abs = particles[i].ang_vel.length();
+            if(ang_vel_abs != 0.0){
+                rot = clam::fromAxisAngle(
+                    ang_vel_abs * (time - particles[i].time),
+                    particles[i].ang_vel / ang_vel_abs
+                ) * rot;
+            }
+        }
         fprintf(fp, "%f\t%f\t%f\t", pos[0], pos[1], pos[2]);
         clam::Vec3d axis;
         double angle;
-        particles[i].rot.toAxisAngle(angle, axis);
-        fprintf(fp, "%f\t%f\t%f\t%f\n", angle, axis[0], axis[1], axis[2]);
+        rot.toAxisAngle(angle, axis);
+        fprintf(fp, "%f\t%f\t%f\t%f\n", angle * 180.0 / M_PI, axis[0], axis[1], axis[2]);
     }
     //fprintf(fp, "%f\n", time);
     fclose(fp);
@@ -135,7 +145,7 @@ int main(int argc, char *argv[]){
         saveConfig(buff, time, sim);
     });
 
-    sim.run(100.0, output);
+    sim.run(1.0, output);
 
     return 0;
 }

@@ -57,6 +57,10 @@ public:
         return time_ < b.time_;
     }
 
+    bool operator>(const ParticleEvent& b)const{
+        return time_ > b.time_;
+    }
+
     //Essential data
     double time_;
     uint32_t pid_, id_;

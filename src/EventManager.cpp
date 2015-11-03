@@ -1,5 +1,7 @@
 #include "EventManager.h"
 #include <cstdio>
+#include <limits>
+#include <cassert>
 #define EMPTY -1
 
 struct EventItem{
@@ -24,25 +26,26 @@ void EventManager::resize(size_t nPart){
     nodes_.resize(2 * nPart);
 }
 
+//TODO: Change to 'optimize'.
 void EventManager::init(void){
     //Instrument queue
     {
         double tmax = 0.0;
-        double tmin[2] = {100000.0};
+        double tmin = std::numeric_limits<double>::max();
+        int n_events = 0;
         for(size_t i = 0; i < events_.size(); ++i){
             if(events_[i].empty()) continue;
 
             double time = events_[i].top().time_;
-            double temp = tmin[0];
-            tmin[0] = std::min(tmin[0], time);
-            if(tmin[0] != temp) tmin[1] = temp;
+            tmin = std::min(tmin, time);
             tmax = std::max(tmax, time);
+            ++n_events;
         }
-        double dtmin = tmin[1] - tmin[0];
-        double dtmax = tmax - tmin[0];
+        double dtmax = tmax - tmin;
 
-        scaleFactor_ = 0.1 / dtmin;
+        scaleFactor_ = n_events / dtmax;
         llSize_      = scaleFactor_ * dtmax;
+        printf("%f, %lu, %f\n", scaleFactor_, llSize_, dtmax);
     }
 
     llQueue_.resize(llSize_ + 1, EMPTY);
@@ -58,6 +61,7 @@ void EventManager::clear(void){
 }
 
 void EventManager::clear(size_t pID){
+    deleteFromEventQ(pID);
     events_[pID].clear();
 }
 
@@ -100,9 +104,8 @@ void EventManager::insertInEventQ(size_t eRef){
 }
 
 void EventManager::processOverflowList(void){
-    size_t index    = llSize_;
-    EventRef eRef   = llQueue_[index];
-    llQueue_[index] = EMPTY;
+    EventRef eRef   = llQueue_[llSize_];
+    llQueue_[llSize_] = EMPTY;
 
     while(eRef != EMPTY){
         EventRef next = eventItems_[eRef].next_;
@@ -127,8 +130,7 @@ void EventManager::deleteFromEventQ(size_t eRef){
 
 ParticleEvent EventManager::getNextEvent(void){
     while(nCBTEvents_ == 0){
-        ++currentIndex_;
-        if(currentIndex_ == llSize_){
+        if(++currentIndex_ == llSize_){
             currentIndex_  = 0;
             baseIndex_    += llSize_;
             processOverflowList();
@@ -143,20 +145,21 @@ ParticleEvent EventManager::getNextEvent(void){
     }
 
     EventRef eRef = nodes_[1]; //The root contains the earliest event
+    cbtDelete(eRef);
 
     return events_[eRef].pop();
 }
 
 void EventManager::cbtUpdate(EventRef eRef){
-    size_t father;
-    for(father = leafs_[eRef] / 2; (nodes_[father] == eRef) && (father > 0); father /= 2){
+    size_t father = leafs_[eRef] / 2;
+    for(; (nodes_[father] == eRef) && (father > 0); father /= 2){
         EventRef leftNode  = nodes_[2 * father];
         EventRef rightNode = nodes_[2 * father + 1];
 
         nodes_[father] = (events_[leftNode].top().time_ < events_[rightNode].top().time_)? leftNode : rightNode;
     }
 
-    for( ; father > 0; father /= 2){
+    for(; father > 0; father /= 2){
         EventRef oldWinner = nodes_[father];
 
         EventRef leftNode  = nodes_[2 * father];
@@ -171,6 +174,7 @@ void EventManager::cbtUpdate(EventRef eRef){
 void EventManager::cbtInsert(EventRef eRef){
     if(nCBTEvents_ == 0){
         nodes_[1] = eRef;
+        leafs_[eRef] = 1;
         ++nCBTEvents_;
         return;
     }

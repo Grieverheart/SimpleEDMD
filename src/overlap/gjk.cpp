@@ -2,6 +2,10 @@
 #include "shape/convex.h"
 #include <cstdio>
 #include "particle.h"
+#include <cassert>
+#include <cstdlib>
+
+#define BARY_GEPP
 
 namespace overlap{
 
@@ -22,6 +26,79 @@ namespace overlap{
 
         const uchar s_pos[] = {0, 0, 1, 0, 2, 0, 0, 0, 3}; //Lookup table for single enabled bit position
         //________________________^__^_____^___________^
+
+#if defined(BARY_ERICSON)
+        inline double triangle_area_2D(double x1, double y1, double x2, double y2, double x3, double y3){
+            return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
+        }
+
+        //Algorithm for calculating barycentric coordinates from
+        //Real-time collision detection by Christer Ericson.
+        inline Vec3d barycentric_coordinates(const Vec3d& P, const Vec3d& A, const Vec3d& B, const Vec3d& C){
+            double u, v, w;
+
+            Vec3d m = cross(B - A, C - A);
+
+            double nu, nv, ood;
+            double x = fabs(m[0]), y = fabs(m[1]), z = fabs(m[2]);
+
+            if(x >= y && x >= z){
+                nu = triangle_area_2D(P[1], P[2], B[1], B[2], C[1], C[2]);
+                nv = triangle_area_2D(P[1], P[2], C[1], C[2], A[1], A[2]);
+                ood = 1.0 / m[0];
+            }
+            else if(y >= x && y >= z){
+                nu = triangle_area_2D(P[0], P[2], B[0], B[2], C[0], C[2]);
+                nv = triangle_area_2D(P[0], P[2], C[0], C[2], A[0], A[2]);
+                ood = 1.0 / -m[1];
+            }
+            else{
+                nu = triangle_area_2D(P[0], P[1], B[0], B[1], C[0], C[1]);
+                nv = triangle_area_2D(P[0], P[1], C[0], C[1], A[0], A[1]);
+                ood = 1.0 / m[2];
+            }
+
+            u = nu * ood;
+            v = nv * ood;
+            w = 1.0 - u - v;
+
+            return Vec3d(u, v, w);
+        }
+#elif defined(BARY_CRAMER)
+        inline Vec3d barycentric_coordinates(const Vec3d& P, const Vec3d& A, const Vec3d& B, const Vec3d& C){
+            Vec3d v0 = B - A, v1 = C - A, v2 = P - A;
+
+            double d00 = dot(v0, v0);
+            double d01 = dot(v0, v1);
+            double d02 = dot(v0, v2);
+            double d11 = dot(v1, v1);
+            double d12 = dot(v1, v2);
+            double denom = d00 * d11 - d01 * d01;
+
+            double v = (d11 * d02 - d01 * d12) / denom;
+            double w = (d00 * d12 - d01 * d02) / denom;
+            double u = 1.0 - v - w;
+
+            return Vec3d(u, v, w);
+        }
+#elif defined(BARY_GEPP)
+        inline Vec3d barycentric_coordinates(const Vec3d& P, const Vec3d& A, const Vec3d& B, const Vec3d& C){
+            Vec3d v0 = B - A, v1 = C - A, v2 = P - A;
+
+            double d00 = dot(v0, v0);
+            double d01 = dot(v0, v1);
+            double d02 = dot(v0, v2);
+            double d11 = dot(v1, v1);
+            double d12 = dot(v1, v2);
+
+            double w = (d00 * d12 - d01 * d02) / (d00 * d11 - d01 * d01);
+            double v = (d00 >= d01)? (d02 - d01 * w) / d00: (d12 - d11 * w) / d01;
+            //double v = (d00 >= d01)? d02 / d00 - (d01 / d00) * w: d12 / d01 - (d11 / d01) * w;
+            double u = 1.0 - v - w;
+
+            return Vec3d(u, v, w);
+        }
+#endif
 
         class Simplex{
         public:
@@ -93,9 +170,35 @@ namespace overlap{
 
             void compute_closest_points(const Vec3d& P, Vec3d& pa, Vec3d& pb){
                 switch(size_){
-                case 1:{
-                    pa = a_[last_sb_];
-                    pb = b_[last_sb_];
+                //IMPORTANT: We are having accuracy problems with this projection.
+                case 3:{
+                    const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
+                    const Vec3d& aA = a_[last_sb_];
+                    const Vec3d& aB = a_[pos[0]];
+                    const Vec3d& aC = a_[pos[1]];
+                    const Vec3d& bA = b_[last_sb_];
+                    const Vec3d& bB = b_[pos[0]];
+                    const Vec3d& bC = b_[pos[1]];
+
+                    const Vec3d& A = p_[last_sb_];
+                    const Vec3d& B = p_[pos[0]];
+                    const Vec3d& C = p_[pos[1]];
+
+                    auto bary = barycentric_coordinates(P, A, B, C);
+
+                    pa = aA * bary[0] + aB * bary[1] + aC * bary[2];
+                    pb = bA * bary[0] + bB * bary[1] + bC * bary[2];
+
+                    //auto omg = (pa - pb);
+                    //omg /= omg.length();
+                    //auto shit = omg - P / P.length();
+                    //printf("%e\n", P.length());
+                    //printf("____ %e, %e, %e", P[0] / P.length(), P[1] / P.length(), P[2] / P.length());
+                    //printf("____ %e, %e, %e\n", omg[0], omg[1], omg[2]);
+                    //assert(fabs(shit[0]) < 1.0e-12);
+                    //assert(fabs(shit[1]) < 1.0e-12);
+                    //assert(fabs(shit[2]) < 1.0e-12);
+
                     break;
                 }
                 case 2:{
@@ -119,36 +222,9 @@ namespace overlap{
 
                     break;
                 }
-                case 3:{
-                    const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
-                    const Vec3d& aA = a_[last_sb_];
-                    const Vec3d& aB = a_[pos[0]];
-                    const Vec3d& aC = a_[pos[1]];
-                    const Vec3d& bA = b_[last_sb_];
-                    const Vec3d& bB = b_[pos[0]];
-                    const Vec3d& bC = b_[pos[1]];
-                    double u, v, w;
-                    {
-                        const Vec3d& A = p_[last_sb_];
-                        const Vec3d& B = p_[pos[0]];
-                        const Vec3d& C = p_[pos[1]];
-
-                        auto v0 = B - A, v1 = C - A, v2 = P - A;
-
-                        double d00 = dot(v0, v0);
-                        double d01 = dot(v0, v1);
-                        double d11 = dot(v1, v1);
-                        double d20 = dot(v2, v0);
-                        double d21 = dot(v2, v1);
-                        double denom = d00 * d11 - d01 * d01;
-
-                        v = (d11 * d20 - d01* d21) / denom;
-                        w = (d00 * d21 - d01* d20) / denom;
-                        u = 1.0 - v - w;
-                    }
-
-                    pa = aA * u + aB * v + aC * w;
-                    pb = bA * u + bB * v + bC * w;
+                case 1:{
+                    pa = a_[last_sb_];
+                    pb = b_[last_sb_];
                     break;
                 }
                 default:
@@ -536,10 +612,11 @@ namespace overlap{
 
     Vec3d gjk_distance(
         const Particle& pa, const shape::Convex& a,
-        const Particle& pb, const shape::Convex& b
+        const Particle& pb, const shape::Convex& b,
+        double feather
     ){
-        auto dir = Vec3d(0.0);
-        //auto dir = pb.pos - pa.pos;
+        //auto dir = Vec3d(0.0);
+        auto dir = pb.pos - pa.pos;
         Simplex S;
 
         uint fail_safe = 0;
@@ -547,15 +624,15 @@ namespace overlap{
         auto inv_rot_a = pa.rot.inv();
         auto inv_rot_b = pb.rot.inv();
 
-        while(fail_safe++ < 20){
+        while(fail_safe++ < 30){
             auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
-            Vec3d new_point = vertex_a - vertex_b;
+            Vec3d new_point = vertex_a - vertex_b + ((feather > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
 
             const Vec3d& last = S.get_last_point();
             //The condition is correct, it can be derived from |v|^2 - v . w < |v|^2 * eps
             //Seems like -1.0e-10 is also ok, but should make sure.
-            if(S.contains(new_point) || dot(dir, new_point) - dot(dir, last) < -1.0e-10 * dot(dir, last)){
+            if(S.contains(new_point) || fabs(dot(dir, new_point) - dot(dir, last)) < 1.0e-14 * dir.length()){
                 return dir * (dot(dir, last) / dir.length2());
             }
 
@@ -569,7 +646,7 @@ namespace overlap{
         return 0.0;
     }
 
-    double gjk_closest_points(
+    Vec3d gjk_closest_points(
         const Particle& pa, const shape::Convex& a,
         const Particle& pb, const shape::Convex& b,
         Vec3d& point_on_a, Vec3d& point_on_b
@@ -583,7 +660,7 @@ namespace overlap{
         auto inv_rot_a = pa.rot.inv();
         auto inv_rot_b = pb.rot.inv();
 
-        while(fail_safe++ < 20){
+        while(fail_safe++ < 30){
             auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b;
@@ -591,10 +668,10 @@ namespace overlap{
             const Vec3d& last = S.get_last_point();
             //The condition is correct, it can be derived from |v|^2 - v . w < |v|^2 * eps
             //Seems like -1.0e-10 is also ok, but should make sure.
-            if(S.contains(new_point) || dot(dir, new_point) - dot(dir, last) < -1.0e-10 * dot(dir, last)){
+            if(S.contains(new_point) || fabs(dot(dir, new_point) - dot(dir, last)) < 1.0e-14 * dir.length()){
                 auto dist_vec = dir * (dot(dir, last) / dir.length2());
                 S.compute_closest_points(dist_vec, point_on_a, point_on_b);
-                return dist_vec.length();
+                return dist_vec;
             }
 
             S.add_point(new_point, vertex_a, vertex_b);
