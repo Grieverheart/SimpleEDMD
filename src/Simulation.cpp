@@ -1,6 +1,5 @@
 #include <cstdio>
 #include <cmath>
-#include <limits>
 #include "Simulation.h"
 #include "shape/variant.h"
 #include "overlap/ray_casting.h"
@@ -103,17 +102,17 @@ namespace{
     };
 }
 
-void stream_position(Particle& particle, double time){
+static inline void stream_position(Particle& particle, double time){
     particle.pos += particle.vel * (time - particle.time);
 }
 
-void stream_rotation(Particle& particle, double time){
-    double ang_vel_abs = particle.ang_vel.length();
-    if(ang_vel_abs != 0.0){
-        particle.rot = clam::fromAxisAngle(
-            ang_vel_abs * (time - particle.time),
-            particle.ang_vel / ang_vel_abs
-        ) * particle.rot;
+static inline void stream_rotation(Particle& particle, double time){
+    clam::Vec3d ha = ((time - particle.time) * 0.5) * particle.ang_vel;
+    double l = ha.length(); // magnitude
+    if(l > 0.0){
+        double sl, cl;
+        sincos(l, &sl, &cl);
+        particle.rot = clam::Quatd(ha * (sl / l), cl) * particle.rot;
     }
 }
 
@@ -149,20 +148,30 @@ public:
             partA.vel  = 0.0;
             partA.time = 0.0;
 
-            double out_radius_A = partA.size * shape_outradius(a);
-            double out_radius_B = partB.size * shape_outradius(b);
-
             //TODO: Look into high iteration number!!!
             while(true){
                 clam::Vec3d shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
 
-                clam::Vec3d shortest_dist_n = shortest_dist / shortest_dist.length();
-                double max_vel = clam::dot(shortest_dist_n, partB.vel) +
-                                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
+                double distance = shortest_dist.length();
+                clam::Vec3d shortest_dist_n = shortest_dist / distance;
+
+                //-- Conservative advancement by Mirtich 1996 PhD Thesis
+                //double out_radius_A = partA.size * shape_outradius(a);
+                //double out_radius_B = partB.size * shape_outradius(b);
+                //double max_vel = clam::dot(shortest_dist_n, partB.vel) +
+                //                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
+
+
+                //-- Conservative advancement by Zhang et al. 2006: DOI 10.1007/s00371-006-0060-0
+                clam::Vec3d c1 = clam::cross(shortest_dist_n, partA.ang_vel);
+                clam::Vec3d c2 = clam::cross(shortest_dist_n, partB.ang_vel);
+                double boundA = clam::dot(c1, partA.rot.rotate(partA.size * a.support(partA.rot.inv().rotate(c1))));
+                double boundB = clam::dot(c2, partB.rot.rotate(partB.size * b.support(partB.rot.inv().rotate(c2))));
+                double max_vel = clam::dot(shortest_dist_n, partB.vel) + boundA + boundB;
 
                 if(max_vel < 0.0) break;
 
-                if(shortest_dist.length() < sim_.closest_distance_tol_){
+                if(distance < sim_.closest_distance_tol_){
                     int iter = 0;
                     while(shortest_dist.length() < sim_.closest_distance_tol_){
                         time *= 0.999;
@@ -173,19 +182,18 @@ public:
                         partA.time = time;
                         shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
                         //This should happen for grazing collisions
-                        if(iter > 10) return ParticleEvent::None();
-                        ++iter;
+                        if(iter++ > 10) return ParticleEvent::None();
                     }
 
-                    return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_], shortest_dist);
+                    return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
                 }
 
-                double max_advance = shortest_dist.length() / max_vel;
+                double max_advance = distance / max_vel;
                 time += max_advance;
 
                 //No collision.
                 //NOTE: Why time > 1.0?
-                if(time < 0.0 || time > 10.0) break;
+                if(time < 0.0 || time > 1.0) break;
 
                 stream_position(partB, time);
                 stream_rotation(partB, time);
@@ -215,7 +223,7 @@ inline ParticleEvent Simulation::ShapeCollisionEventVisitor::operator()(const sh
     double time(0.0);
     clam::Vec3d normal;
     if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius(), dist, relVel, time, &normal)){
-        return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_], normal);
+        return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
     }
     else return ParticleEvent::None();
 }
@@ -230,7 +238,6 @@ ParticleEvent Simulation::getCellCrossEvent(int pid)const{
     double time(0.0);
     clam::Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.getCellOrigin(cidx));
     int cellOffset = overlap::cell_raycast(cll_.getCellSize(), rpos, particles_[pid].vel, time);
-    assert(time > 0.0);
     return ParticleEvent::CellCross(time_ + time, pid, cellOffset);
 }
 
@@ -316,18 +323,8 @@ void Simulation::runCollisionEvent(const ParticleEvent& event){
         }
     }
 
-    {
-        auto event = getCellCrossEvent(pA);
-        assert(event.get_type() != PE_NONE);
-        assert(event.time_ > 0.0);
-        eventManager_.push(pA, event);
-    }
-    {
-        auto event = getCellCrossEvent(pB);
-        assert(event.get_type() != PE_NONE);
-        assert(event.time_ > 0.0);
-        eventManager_.push(pB, event);
-    }
+    eventManager_.push(pA, getCellCrossEvent(pA));
+    eventManager_.push(pB, getCellCrossEvent(pB));
 
     eventManager_.update(pA);
     eventManager_.update(pB);
@@ -346,11 +343,10 @@ void Simulation::runPossibleCollisionEvent(const ParticleEvent& event){
 
     auto new_event = getCollisionEvent(pA, pB);
     if(new_event.get_type() != PE_NONE){
-        assert(new_event.time_ > time_);
-        assert(new_event.get_type() != PE_POSSIBLE_COLLISION);
         eventManager_.push(pA, new_event);
-        eventManager_.update(pA);
     }
+
+    eventManager_.update(pA);
 }
 
 void Simulation::runCellCrossEvent(const ParticleEvent& event){
@@ -430,12 +426,10 @@ bool Simulation::init(void){
         for(int j = i + 1; j < n_part_; ++j){
             auto event = getCollisionEvent(i, j);
             if(event.get_id() != PE_NONE){
-                assert(event.time_ > 0.0);
                 eventManager_.push(i, event);
             }
         }
         auto event = getCellCrossEvent(i);
-        assert(event.time_ > 0.0);
         eventManager_.push(i, event);
     }
     eventManager_.init();

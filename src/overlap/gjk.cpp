@@ -624,15 +624,13 @@ namespace overlap{
         auto inv_rot_a = pa.rot.inv();
         auto inv_rot_b = pb.rot.inv();
 
-        while(fail_safe++ < 30){
+        while(fail_safe++ < 20){
             auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b + ((feather > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
 
             const Vec3d& last = S.get_last_point();
-            //The condition is correct, it can be derived from |v|^2 - v . w < |v|^2 * eps
-            //Seems like -1.0e-10 is also ok, but should make sure.
-            if(S.contains(new_point) || fabs(dot(dir, new_point) - dot(dir, last)) < 1.0e-14 * dir.length()){
+            if(S.contains(new_point) || fabs(dot(dir, new_point - last)) < 1.0e-14 * dir.length()){
                 return dir * (dot(dir, last) / dir.length2());
             }
 
@@ -651,8 +649,8 @@ namespace overlap{
         const Particle& pb, const shape::Convex& b,
         Vec3d& point_on_a, Vec3d& point_on_b
     ){
-        auto dir = Vec3d(0.0);
-        //auto dir = pb.pos - pa.pos;
+        //auto dir = Vec3d(0.0);
+        auto dir = pb.pos - pa.pos;
         Simplex S;
 
         uint fail_safe = 0;
@@ -660,15 +658,13 @@ namespace overlap{
         auto inv_rot_a = pa.rot.inv();
         auto inv_rot_b = pb.rot.inv();
 
-        while(fail_safe++ < 30){
+        while(fail_safe++ < 20){
             auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b;
 
             const Vec3d& last = S.get_last_point();
-            //The condition is correct, it can be derived from |v|^2 - v . w < |v|^2 * eps
-            //Seems like -1.0e-10 is also ok, but should make sure.
-            if(S.contains(new_point) || fabs(dot(dir, new_point) - dot(dir, last)) < 1.0e-14 * dir.length()){
+            if(S.contains(new_point) || fabs(dot(dir, new_point - last)) < 1.0e-14 * dir.length()){
                 auto dist_vec = dir * (dot(dir, last) / dir.length2());
                 S.compute_closest_points(dist_vec, point_on_a, point_on_b);
                 return dist_vec;

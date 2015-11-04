@@ -3,7 +3,7 @@
 
 #ifdef __cplusplus
 
-#include <math.h>
+#include <cmath>
 
 namespace clam{
     namespace{

@@ -6,9 +6,8 @@
 #include <vector>
 #include <cstddef>
 
-typedef int EventRef;
-
 struct EventItem;
+using EventRef = size_t;
 
 //Consider collecting statistics to improve estimates of scaleFactor and llSize after clears
 class EventManager{

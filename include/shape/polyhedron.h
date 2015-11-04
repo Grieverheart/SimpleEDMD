@@ -4,6 +4,7 @@
 #include "convex.h"
 #include <cstddef>
 #include <vector>
+#include <algorithm>
 
 namespace shape{
 
@@ -65,37 +66,37 @@ namespace shape{
     //};
 
     inline clam::Vec3d Polyhedron::support(const clam::Vec3d& dir)const{
-        using idx_t = std::vector<unsigned int>::size_type;
-        idx_t curr = 0;
-        double p = 0.0;
-        double max = clam::dot(vertices_[0], dir);
-        for(idx_t i = 1; i < vertices_.size(); ++i){
-            p = clam::dot(vertices_[i], dir);
-            if(p > max){
-                curr = i;
-                max = p;
-            }
-        }
-        return vertices_[curr];
         //using idx_t = std::vector<unsigned int>::size_type;
-        //unsigned int next = 0, last = 0, curr = 0;
+        //idx_t curr = 0;
         //double p = 0.0;
         //double max = clam::dot(vertices_[0], dir);
-        //for(;;){
-        //    for(idx_t vid = 0; vid < vert_neighbors[curr].size(); ++vid){
-        //        next = vert_neighbors[curr][vid];
-        //        if(next != last){
-        //            p = clam::dot(vertices_[next], dir);
-        //            if(p > max){
-        //                max = p;
-        //                last = curr;
-        //                curr = next;
-        //                break;
-        //            }
-        //        }
-        //        if(vid == vert_neighbors[curr].size() - 1) return vertices_[curr];
+        //for(idx_t i = 1; i < vertices_.size(); ++i){
+        //    p = clam::dot(vertices_[i], dir);
+        //    if(p > max){
+        //        curr = i;
+        //        max = p;
         //    }
         //}
+        //return vertices_[curr];
+        using idx_t = std::vector<unsigned int>::size_type;
+        unsigned int next = 0, last = 0, curr = 0;
+        double p = 0.0;
+        double max = clam::dot(vertices_[0], dir);
+        for(;;){
+            for(idx_t vid = 0; vid < vert_neighbors[curr].size(); ++vid){
+                next = vert_neighbors[curr][vid];
+                if(next != last){
+                    p = clam::dot(vertices_[next], dir);
+                    if(p > max){
+                        max = p;
+                        last = curr;
+                        curr = next;
+                        break;
+                    }
+                }
+                if(vid == vert_neighbors[curr].size() - 1) return vertices_[curr];
+            }
+        }
     }
 
     inline double Polyhedron::max_vert_dist2(const clam::Vec3d& pos, const clam::Quatd& rot)const{

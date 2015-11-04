@@ -1,9 +1,7 @@
 #ifndef __EVENT_H
 #define __EVENT_H
 
-#include <cstddef>
 #include <cstdint>
-#include <functional>
 #include "clam.h"
 
 enum ParticleEventType{
@@ -28,10 +26,9 @@ public:
         return ParticleEvent();
     }
 
-    static inline ParticleEvent Collision(double time, int pid, int id, int optional, clam::Vec3d normal){
+    static inline ParticleEvent Collision(double time, int pid, int id, int optional){
         ParticleEvent event(PE_COLLISION, time, pid, id);
         event.optional_ = optional;
-        event.normal_ = normal;
         return event;
     }
 
@@ -67,8 +64,6 @@ public:
 
     //Data needed for collision events.
     uint32_t optional_;
-    //TODO: Make this a pointer for saving space
-    clam::Vec3d normal_;
 };
 
 #endif

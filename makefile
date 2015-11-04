@@ -7,7 +7,7 @@ OBJ+=$(patsubst src/overlap/%.cpp, bin/%.o, $(OVERLAP_SRC))
 EXE=main
 
 CC=g++
-CFLAGS=-Wall -g -O3 -std=c++0x -march=native -I./include
+CFLAGS=-Wall -g -O3 -std=c++0x -march=native -DNDEBUG -I./include
 LDFLAGS= -lm
 RM=rm
 

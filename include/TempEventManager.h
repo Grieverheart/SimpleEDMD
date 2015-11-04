@@ -4,6 +4,7 @@
 #include "Event.h"
 #include <vector>
 #include <list>
+#include <cstddef>
 
 //Consider collecting statistics to improve estimates of scaleFactor and llSize after clears
 class TempEventManager{

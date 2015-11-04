@@ -9,7 +9,6 @@
 #include "CellList.h"
 #include "particle.h"
 #include "EventManager.h"
-#include "TempEventManager.h"
 #include "shape/variant_fwd.h"
 
 //NOTE:
@@ -27,7 +26,7 @@ class Simulation{
 public:
     Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles, std::vector<shape::Variant*>&& shapes):
         n_part_(particles.size()), n_shapes_(shapes.size()), time_(0.0),
-        closest_distance_tol_(1.0e-10),
+        closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
         pbc_(pbc), particles_(particles), shapes_(shapes), systemVelocity_(0.0)
     {
         mtGen_.seed(0);//time(NULL));

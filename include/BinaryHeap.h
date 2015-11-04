@@ -2,7 +2,6 @@
 #define __BINARY_HEAP_H
 
 #include <vector>
-#include <utility>
 #include <functional>
 
 //FUTURE: Add iterators for iterating over tree elements
