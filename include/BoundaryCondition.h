@@ -12,23 +12,17 @@ public:
         boxSize_(boxSize), iBoxSize2_(2.0 / boxSize_)
     {}
 
+    //Assum -1.5B < Dx < 1.5B
     clam::Vec3d minImage(const clam::Vec3d& vec)const{
         clam::Vec3d retVec;
     
-        int k = vec[0] * iBoxSize2_;
-        retVec[0] = vec[0] - k * boxSize_;
-        k = retVec[0] * iBoxSize2_;
-        retVec[0] = retVec[0] - k * boxSize_;
-    
-        int l = vec[1] * iBoxSize2_;
-        retVec[1] = vec[1] - l * boxSize_;
-        l = retVec[1] * iBoxSize2_;
-        retVec[1] = retVec[1] - l * boxSize_;
-    
-        int m = vec[2] * iBoxSize2_;
-        retVec[2] = vec[2] - m * boxSize_;
-        m = retVec[2] * iBoxSize2_;
-        retVec[2] = retVec[2] - m * boxSize_;
+        retVec[0] = vec[0] - int(vec[0] * iBoxSize2_) * boxSize_;
+        retVec[1] = vec[1] - int(vec[1] * iBoxSize2_) * boxSize_;
+        retVec[2] = vec[2] - int(vec[2] * iBoxSize2_) * boxSize_;
+
+        retVec[0] -= int(retVec[0] * iBoxSize2_) * boxSize_;
+        retVec[1] -= int(retVec[1] * iBoxSize2_) * boxSize_;
+        retVec[2] -= int(retVec[2] * iBoxSize2_) * boxSize_;
 
         assert((retVec[0] < 0.5 * boxSize_) && (retVec[0] > -0.5 * boxSize_));
         assert((retVec[1] < 0.5 * boxSize_) && (retVec[1] > -0.5 * boxSize_));
@@ -37,6 +31,7 @@ public:
         return retVec;
     }
 
+    //TODO: Make this faster.
     clam::Vec3d apply(const clam::Vec3d& pos)const{
         clam::Vec3d retVec;
         //retVec[0] = pos[0] - int(pos[0] * iBoxSize2_ - 1.0) * boxSize_;

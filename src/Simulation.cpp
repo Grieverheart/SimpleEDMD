@@ -81,10 +81,10 @@ namespace{
             return true;
         }
 
+        //Assume always resolved.
         bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
             clam::Vec3d relPos = pbc_.minImage(pa_.pos - pb_.pos);
             double dist2 = relPos.length2();
-            if(dist2 < sqr(a.radius() + b.radius())) return false;
 
             clam::Vec3d relVel = pa_.vel - pb_.vel;
             clam::Vec3d deltaVel = relPos * clam::dot(relPos, relVel) / dist2;
@@ -155,14 +155,14 @@ public:
                 double distance = shortest_dist.length();
                 clam::Vec3d shortest_dist_n = shortest_dist / distance;
 
-                //-- Conservative advancement by Mirtich 1996 PhD Thesis
+                /* Conservative advancement by Mirtich 1996 PhD Thesis */
                 //double out_radius_A = partA.size * shape_outradius(a);
                 //double out_radius_B = partB.size * shape_outradius(b);
                 //double max_vel = clam::dot(shortest_dist_n, partB.vel) +
                 //                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
 
 
-                //-- Conservative advancement by Zhang et al. 2006: DOI 10.1007/s00371-006-0060-0
+                /* Conservative advancement by Zhang et al. 2006: DOI 10.1007/s00371-006-0060-0 */
                 clam::Vec3d c1 = clam::cross(shortest_dist_n, partA.ang_vel);
                 clam::Vec3d c2 = clam::cross(shortest_dist_n, partB.ang_vel);
                 double boundA = clam::dot(c1, partA.rot.rotate(partA.size * a.support(partA.rot.inv().rotate(c1))));
@@ -222,7 +222,7 @@ inline ParticleEvent Simulation::ShapeCollisionEventVisitor::operator()(const sh
 
     double time(0.0);
     clam::Vec3d normal;
-    if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius(), dist, relVel, time, &normal)){
+    if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius() + sim_.closest_distance_tol_, dist, relVel, time, &normal)){
         return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.nCollisions_[pb_idx_]);
     }
     else return ParticleEvent::None();

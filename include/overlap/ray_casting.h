@@ -8,7 +8,7 @@ namespace overlap{
         double l2 = dot(pos, pos);
         double r2 = radius * radius;
 
-        if(s < 0.0 && l2 > r2) return false;
+        if(s < 0.0/* && l2 > r2*/) return false;
 
         double idnorm = 1.0 / dir.length();
         s *= idnorm;
