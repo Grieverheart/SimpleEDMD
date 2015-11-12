@@ -5,6 +5,21 @@
 #include "shape/variant_fwd.h"
 #include <boost/variant.hpp>
 
+class ShapeOutRadiusVisitor: public boost::static_visitor<double>{
+public:
+    double operator()(const shape::Polyhedron& poly)const{
+        return poly.out_radius();
+    }
+
+    double operator()(const shape::Sphere& sph)const{
+        return sph.radius();
+    }
+};
+
+inline double shape_outradius(const shape::Variant& shape){
+    return boost::apply_visitor(ShapeOutRadiusVisitor(), shape);
+}
+
 //TODO: Perhaps do the following to avoid calling boost explicitly
 //
 //namespace shape{

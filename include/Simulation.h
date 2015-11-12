@@ -54,7 +54,6 @@ private:
     void runCollisionEvent(const ParticleEvent& event);
     void runCellCrossEvent(const ParticleEvent& event);
     void runPossibleCollisionEvent(const ParticleEvent& event);
-    void updateParticle(int pid);
 
     int    n_part_;
     int    n_shapes_;

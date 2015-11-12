@@ -16,169 +16,144 @@ public:
     int update(int pid, const clam::Vec3d& pos);
     int move(int pid, int coffset);
 
-    int getIndex(int pid)const;
-    clam::Vec3d getCellOrigin(int cidx)const;
-    clam::Vec3d getCellSize(void)const;
+    int cell_index(int pid)const;
+    clam::Vec3d cell_origin(int cidx)const;
+    clam::Vec3d cell_size(void)const;
 
-    class NeighbourIterator;
-    class DirectionalNeighbourIterator;
     class CellIterator;
+    class CellNeighbourIterator;
+    class CellContentIterator;
 
-    NeighbourIterator getNeighbourIterator(int pid)const;
-    DirectionalNeighbourIterator getDirNeighbourIterator(int pid, int dir)const;
-    CellIterator getCellIterator(int cid)const;
+    CellIterator          cells(void)const;
+    CellNeighbourIterator cell_vol_nbs(int pid)const;
+    CellNeighbourIterator cell_nbs(int cid)const;
+    CellNeighbourIterator particle_cell_nbs(int pid)const;
+    CellNeighbourIterator particle_cell_nbs(const clam::Vec3d& pos)const;
+    CellNeighbourIterator cell_dir_nbs(int cid, int dir)const;
+    CellContentIterator   cell_content(int cid)const;
 
 private:
-    int indicesToIndex(const int (&indices)[3])const;
-    void indexToIndices(int index, int (&indices)[3])const;
-    int cellIndex(const clam::Vec3d& pos)const;
+    int indices_to_index(const int (&indices)[3])const;
+    void index_to_indices(int index, int (&indices)[3])const;
+    int cell_index(const clam::Vec3d& pos)const;
 
 private:
     int    nPart_;
     int    nCells_;         //Number of cells in each dimension
+    int    nCellsTot_;
     int*   cell_;           //First particle in cell
     int*   linkedList_;
     int*   pCellIds_;
     int*   cellNeighbours_;
+    int*   cellDirNeighbours_;
+    int*   cellVolNeighbours_;
     double cellSize_;       //Cell size in each dimension
 };
 
-class CellList::NeighbourIterator{
+class CellList::CellNeighbourIterator{
+    friend class CellList;
 public:
-    NeighbourIterator(const CellList& parent, int pid):
-        cellNeighbours_(&parent.cellNeighbours_[27 * parent.pCellIds_[pid]]),
-        nidx_(0)
+    constexpr CellNeighbourIterator(const int* neighbour_list, int n_neighbours = 27):
+        cellNeighbours_(neighbour_list),
+        nidx_(0), end_(n_neighbours)
     {}
 
-    NeighbourIterator begin(void){
-        NeighbourIterator ret = *this;
-        ret.nidx_ = 0;
+    constexpr CellNeighbourIterator begin(void)const{
+        return CellNeighbourIterator(cellNeighbours_, end_);
+    }
+
+    CellNeighbourIterator end(void)const{
+        CellNeighbourIterator ret = *this;
+        ret.nidx_ = end_;
         return ret;
     }
 
-    NeighbourIterator end(void){
-        NeighbourIterator ret = *this;
-        ret.nidx_ = 27;
-        return ret;
-    }
-
-    bool operator!=(const NeighbourIterator& other){
+    constexpr bool operator!=(const CellNeighbourIterator& other)const{
         return nidx_ != other.nidx_;
     }
 
-    NeighbourIterator& operator++(void){
+    CellNeighbourIterator& operator++(void){
         ++nidx_;
         return *this;
     }
 
-    int operator*(void)const{
+    constexpr int operator*(void)const{
         return cellNeighbours_[nidx_];
     }
 private:
     const int* cellNeighbours_;
     int nidx_;
-};
-
-
-//Compile-time Directional Neighbour index generator
-namespace{
-    constexpr bool isDirNeighbour(int n){
-        return ((n / 27) / 2 == 0)?  (((n % 27) % 3 - 1) * (2 * ((n / 27) % 2) - 1) > 0):
-               ((n / 27) / 2 == 1)? ((((n % 27) / 3) % 3 - 1) * (2 * ((n / 27) % 2) - 1) > 0):
-                                    ((((n % 27) / 9) - 1) * (2 * ((n / 27) % 2) - 1) > 0);
-    }
-
-    //Decides to keep N % 27 or not
-    template<bool B, int N, int...S>
-    struct dummy;
-
-    template<int N, int...S>
-    struct gen_nums: dummy<isDirNeighbour(N - 1), (N - 1), S...>{
-        static_assert(N <= 162, "");
-    };
-
-    template<int...S>
-    struct gen_nums<0, S...>{
-        static constexpr int value[] = {S...};
-    };
-
-    template<int...S>
-    constexpr int gen_nums<0, S...>::value[];
-
-    template<int N, int...S>
-    struct dummy<false, N, S...>: gen_nums<N, S...>{};
-
-    template<int N, int...S>
-    struct dummy<true, N, S...>: gen_nums<N, N % 27, S...>{};
-
-    struct DirNeighbours: gen_nums<27 * 6>{};
-}
-
-class CellList::DirectionalNeighbourIterator{
-public:
-    DirectionalNeighbourIterator(const CellList& parent, int pid, int dir):
-        cellNeighbours_(&parent.cellNeighbours_[27 * parent.pCellIds_[pid]]),
-        nidx_(0), dir_(dir)
-    {}
-
-    DirectionalNeighbourIterator begin(void){
-        DirectionalNeighbourIterator ret = *this;
-        ret.nidx_ = 0;
-        return ret;
-    }
-
-    DirectionalNeighbourIterator end(void){
-        DirectionalNeighbourIterator ret = *this;
-        ret.nidx_ = 9;
-        return ret;
-    }
-
-    bool operator!=(const DirectionalNeighbourIterator& other)const{
-        return nidx_ != other.nidx_;
-    }
-
-    DirectionalNeighbourIterator& operator++(void){
-        ++nidx_;
-        return *this;
-    }
-
-    int operator*(void)const{
-        return cellNeighbours_[DirNeighbours::value[9 * dir_ + nidx_]];
-    }
-private:
-    const int* cellNeighbours_;
-    int nidx_, dir_;
+    int end_;
 };
 
 class CellList::CellIterator{
 public:
-    CellIterator(const CellList& parent, int cidx):
-        first_pid(parent.cell_[cidx]), curr_pid(first_pid),
+    constexpr CellIterator(int ncells):
+        ncells_(ncells), cid_(0)
+    {}
+
+    constexpr CellIterator begin(void)const{
+        return CellIterator(ncells_);
+    }
+
+    CellIterator end(void)const{
+        CellIterator ret = *this;
+        ret.cid_ = ncells_;
+        return ret;
+    }
+
+    constexpr bool operator!=(const CellIterator& other)const{
+        return cid_ != other.cid_;
+    }
+
+    CellIterator& operator++(void){
+        ++cid_;
+        return *this;
+    }
+
+    constexpr int operator*(void)const{
+        return cid_;
+    }
+private:
+    int ncells_;
+    int cid_;
+};
+
+class CellList::CellContentIterator{
+public:
+    constexpr CellContentIterator(const CellList& parent, int cidx):
+        first_pid(parent.cell_[cidx]), curr_pid(parent.cell_[cidx]),
         linkedList_(parent.linkedList_)
     {}
 
-    CellIterator begin(void){
-        CellIterator ret = *this;
+    CellContentIterator begin(void)const{
+        CellContentIterator ret = *this;
         ret.curr_pid = first_pid;
         return ret;
     }
 
-    CellIterator end(void){
-        CellIterator ret = *this;
+    CellContentIterator end(void)const{
+        CellContentIterator ret = *this;
         ret.curr_pid = CLL_EMPTY;
         return ret;
     }
 
-    bool operator!=(const CellIterator& other)const{
+    constexpr bool operator!=(const CellContentIterator& other)const{
         return curr_pid != other.curr_pid;
     }
 
-    CellIterator& operator++(void){
+    CellContentIterator& operator++(void){
         curr_pid = linkedList_[curr_pid];
         return *this;
     }
 
-    int operator*(void)const{
+    CellContentIterator operator+(int num)const{
+        auto ret = *this;
+        for(int i = 0; i < num; ++i) ret.curr_pid = ret.linkedList_[ret.curr_pid];
+        return ret;
+    }
+
+    constexpr int operator*(void)const{
         return curr_pid;
     }
 private:
