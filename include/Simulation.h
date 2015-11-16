@@ -9,35 +9,24 @@
 #include "CellList.h"
 #include "particle.h"
 #include "EventManager.h"
+#include "configuration.h"
 #include "shape/variant_fwd.h"
-
-//NOTE:
-//1. The Boundary Condition class will most probably need to be handed
-//   as a template parameter for performance reasons.
-//2. Make a Collision Response class for different collision responses.
-//   We might have to pass this as a template parameter too.
-//3. We might also need to switch to -B/2 -> +B/2 coordinates so that
-//   we can easily implement spherical boundary conditions.
-
-class TempEventManager;
-class EventManager;
 
 class Simulation{
 public:
-    Simulation(const CubicPBC& pbc, std::vector<Particle>&& particles, std::vector<shape::Variant*>&& shapes):
-        n_part_(particles.size()), n_shapes_(shapes.size()), time_(0.0),
+    Simulation(const Configuration& config):
+        time_(0.0),
         closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
-        pbc_(pbc), particles_(particles), shapes_(shapes), systemVelocity_(0.0)
+        systemVelocity_(0.0),
+        config_(config),
+        pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
     {
         mtGen_.seed(0);//time(NULL));
     }
 
     void run(double endTime, PeriodicCallback& outputCondition);
-    bool init(void);
+    bool init(void); //TODO: Perhaps move to constructor.
 
-    int getNumParticles(void)const{
-        return n_part_;
-    }
     const std::vector<Particle>& getParticles(void)const{
         return particles_;
     }
@@ -55,18 +44,17 @@ private:
     void runCellCrossEvent(const ParticleEvent& event);
     void runPossibleCollisionEvent(const ParticleEvent& event);
 
-    int    n_part_;
-    int    n_shapes_;
+private:
     double time_;
     double prev_time_;
     double closest_distance_tol_;
-
-    CubicPBC pbc_;
-
-    std::vector<uint32_t> nCollisions_;
-    std::vector<Particle> particles_;
-    std::vector<shape::Variant*> shapes_;
     clam::Vec3d systemVelocity_;
+    std::vector<uint32_t> nCollisions_;
+
+    Configuration config_;
+    CubicPBC& pbc_;
+    std::vector<Particle>& particles_;
+    std::vector<shape::Variant*>& shapes_;
 
     EventManager eventManager_;
     CellList     cll_;

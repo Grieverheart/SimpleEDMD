@@ -372,11 +372,13 @@ void Simulation::runCellCrossEvent(const ParticleEvent& event){
 }
 
 bool Simulation::init(void){
-    if(n_part_) eventManager_.resize(n_part_);
+    auto n_part = particles_.size();
+
+    if(n_part) eventManager_.resize(n_part);
     else return false;
 
     //Initialize number of collisions to zero
-    nCollisions_.resize(n_part_, 0);
+    nCollisions_.resize(n_part, 0);
 
     //Initialize cell list
     double max_radius = 0.0;
@@ -384,11 +386,11 @@ bool Simulation::init(void){
         double outradius = particle.size * boost::apply_visitor(ShapeOutRadiusVisitor(), *shapes_[particle.shape_id]);
         max_radius = std::max(max_radius, outradius);
     }
-    cll_.init(n_part_, pbc_.getSize(), 2.0 * max_radius + 0.01);
+    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
-    for(int i = 0; i < n_part_; ++i){
+    for(size_t i = 0; i < n_part; ++i){
         double x1, x2, r;
         do{
             x1 = dist(mtGen_);
@@ -402,7 +404,7 @@ bool Simulation::init(void){
         particles_[i].vel = vec;
         cll_.add(i, particles_[i].pos);
     }
-    systemVelocity_ = systemVelocity_ * (1.0 / n_part_);
+    systemVelocity_ = systemVelocity_ * (1.0 / n_part);
 
     foreach_pair(cll_, [this](int i, int j) -> bool {
         auto event = getCollisionEvent(i, j);
@@ -412,7 +414,7 @@ bool Simulation::init(void){
         return false;
     });
 
-    for(int i = 0; i < n_part_; ++i){
+    for(size_t i = 0; i < n_part; ++i){
         auto event = getCellCrossEvent(i);
         eventManager_.push(i, event);
     }
