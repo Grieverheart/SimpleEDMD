@@ -1,13 +1,17 @@
 SRC=$(wildcard src/*.cpp)
 SHAPE_SRC=$(wildcard src/shape/*.cpp)
 OVERLAP_SRC=$(wildcard src/overlap/*.cpp)
+IO_SRC=$(wildcard src/io/*.cpp)
+TINYXML_SRC=$(wildcard external/tinyxml2/*.cpp)
 OBJ=$(patsubst src/%.cpp, bin/%.o, $(SRC))
 OBJ+=$(patsubst src/shape/%.cpp, bin/%.o, $(SHAPE_SRC))
 OBJ+=$(patsubst src/overlap/%.cpp, bin/%.o, $(OVERLAP_SRC))
+OBJ+=$(patsubst src/io/%.cpp, bin/%.o, $(IO_SRC))
+OBJ+=$(patsubst external/tinyxml2/%.cpp, bin/%.o, $(TINYXML_SRC))
 EXE=main
 
 CC=g++
-CFLAGS=-Wall -g -O3 -std=c++0x -march=native -DNDEBUG -I./include
+CFLAGS=-Wall -g -O3 -std=c++0x -march=native -DNDEBUG -I./include -I./external
 LDFLAGS= -lm
 RM=rm
 
@@ -20,6 +24,12 @@ bin/%.o: src/shape/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
 bin/%.o: src/overlap/%.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
+bin/%.o: src/io/%.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
+bin/%.o: external/tinyxml2/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: all
