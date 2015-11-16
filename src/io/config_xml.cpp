@@ -124,7 +124,7 @@ bool xml_load_config(const char* filename, Configuration& config){
             size_node->FirstChildElement("x")->QueryDoubleText(&box_size[0]);
             size_node->FirstChildElement("y")->QueryDoubleText(&box_size[1]);
             size_node->FirstChildElement("z")->QueryDoubleText(&box_size[2]);
-            config.pbc_.setSize(box_size[0]);
+            config.pbc_.setSize(box_size);
         }
         else{
             printf("Unknown box type: %s.\n", box->Attribute("shape"));

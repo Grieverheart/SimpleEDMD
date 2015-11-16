@@ -8,14 +8,14 @@
 
 struct Configuration{
     Configuration(void){}
-    Configuration(const CubicPBC& pbc, const std::vector<Particle>&  particles, const std::vector<shape::Variant*>& shapes);
+    Configuration(const RectangularPBC& pbc, const std::vector<Particle>&  particles, const std::vector<shape::Variant*>& shapes);
     Configuration(const Configuration&);
 
     ~Configuration(void);
 
     std::vector<Particle> particles_;
     std::vector<shape::Variant*> shapes_;
-    CubicPBC pbc_;
+    RectangularPBC pbc_;
 };
 
 #endif

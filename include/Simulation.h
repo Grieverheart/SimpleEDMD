@@ -19,7 +19,7 @@ public:
     void run(double end_time, PeriodicCallback& output_condition);
 
     const std::vector<Particle>& get_particles(void)const;
-    const CubicPBC& get_pbc(void)const;
+    const RectangularPBC& get_pbc(void)const;
     clam::Vec3d get_system_velocity(void)const;
     const Configuration& get_configuration(void)const;
 
@@ -38,7 +38,7 @@ private:
     std::vector<uint32_t> n_collisions_;
 
     Configuration config_;
-    CubicPBC& pbc_;
+    RectangularPBC& pbc_;
     std::vector<Particle>& particles_;
     std::vector<shape::Variant*>& shapes_;
 

@@ -5,7 +5,7 @@ Configuration::~Configuration(void){
     for(auto shape: shapes_) delete shape;
 }
 
-Configuration::Configuration(const CubicPBC& pbc, const std::vector<Particle>&  particles, const std::vector<shape::Variant*>& shapes):
+Configuration::Configuration(const RectangularPBC& pbc, const std::vector<Particle>&  particles, const std::vector<shape::Variant*>& shapes):
     particles_(particles),
     pbc_(pbc)
 {

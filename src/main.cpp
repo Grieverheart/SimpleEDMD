@@ -6,7 +6,7 @@
 #include "obj_loader.h"
 
 #if 1
-void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles, std::vector<shape::Variant*>& shapes){
+void readConfig(const char* filename, RectangularPBC& pbc, std::vector<Particle>& particles, std::vector<shape::Variant*>& shapes){
     char line[128];
     const char* delim = "\t";
     char *t1 = NULL;
@@ -33,7 +33,7 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
             part.shape_id = 0;
             particles.push_back(part);
         }
-        else if(i == 2) pbc.setSize(atof(line));
+        else if(i == 2) pbc.setSize(clam::Vec3d(atof(line)));
         ++i;
     }
     free(t1);
@@ -46,7 +46,7 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
 }
 
 #else
-void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& particles, std::vector<shape::Variant*>& shapes){
+void readConfig(const char* filename, RectangularPBC& pbc, std::vector<Particle>& particles, std::vector<shape::Variant*>& shapes){
     char line[128];
     const char* delim = "\t";
     char *t1 = NULL;
@@ -89,9 +89,9 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
 void saveConfig(const char* filename, double time, const Simulation& sim){
     FILE *fp = fopen(filename, "w");
     size_t nSpheres = sim.get_particles().size();
-    const CubicPBC& pbc = sim.get_pbc();
+    const RectangularPBC& pbc = sim.get_pbc();
     fprintf(fp, "%lu\n", nSpheres);
-    fprintf(fp, "%f\t0.0\t0.0\t0.0\t%f\t0.0\t0.0\t0.0\t%f\n", pbc.getSize(), pbc.getSize(), pbc.getSize());
+    fprintf(fp, "%f\t0.0\t0.0\t0.0\t%f\t0.0\t0.0\t0.0\t%f\n", pbc.getSize()[0], pbc.getSize()[1], pbc.getSize()[2]);
 
     const std::vector<Particle>& particles = sim.get_particles();
     for(size_t i = 0; i < nSpheres; ++i){
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]){
 
     std::vector<Particle> particles;
     std::vector<shape::Variant*> shapes;
-    CubicPBC pbc;
+    RectangularPBC pbc;
     readConfig(argv[1], pbc, particles, shapes);
 
     Simulation sim(Configuration(pbc, particles, shapes));

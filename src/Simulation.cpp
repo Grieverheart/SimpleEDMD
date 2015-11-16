@@ -59,7 +59,7 @@ namespace{
         }
     }
 
-    inline void update_particle(Particle& particle, double time, const CubicPBC& pbc){
+    inline void update_particle(Particle& particle, double time, const RectangularPBC& pbc){
         if(particle.time < time){
             stream_position(particle, time);
             stream_rotation(particle, time);
@@ -74,7 +74,7 @@ namespace{
 
     class ShapeCollisionResolutionVisitor: public boost::static_visitor<bool> {
     public:
-        ShapeCollisionResolutionVisitor(Particle& pa, Particle& pb, const CubicPBC& pbc):
+        ShapeCollisionResolutionVisitor(Particle& pa, Particle& pb, const RectangularPBC& pbc):
             pa_(pa), pb_(pb), pbc_(pbc)
         {}
 
@@ -128,7 +128,7 @@ namespace{
     private:
         Particle& pa_;
         Particle& pb_;
-        const CubicPBC& pbc_;
+        const RectangularPBC& pbc_;
     };
 }
 
@@ -375,7 +375,7 @@ const std::vector<Particle>& Simulation::get_particles(void)const{
     return particles_;
 }
 
-const CubicPBC& Simulation::get_pbc(void)const{
+const RectangularPBC& Simulation::get_pbc(void)const{
     return pbc_;
 }
 
@@ -411,7 +411,7 @@ Simulation::Simulation(const Configuration& config):
         double outradius = particle.size * boost::apply_visitor(ShapeOutRadiusVisitor(), *shapes_[particle.shape_id]);
         max_radius = std::max(max_radius, outradius);
     }
-    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
+    cll_.init(n_part, pbc_.getSize()[0], 2.0 * max_radius + 0.01);//TODO: Make cell list also work for non-cubic containers.
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
