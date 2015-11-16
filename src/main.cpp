@@ -128,8 +128,6 @@ int main(int argc, char *argv[]){
 
     Simulation sim(Configuration(pbc, particles, shapes));
 
-    sim.init();
-
     char buff[64];
     sprintf(buff, "Data/pid%u.%06u.dat", getpid(), 0);
     saveConfig(buff, 0.0, sim);

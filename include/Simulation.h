@@ -14,18 +14,9 @@
 
 class Simulation{
 public:
-    Simulation(const Configuration& config):
-        time_(0.0),
-        closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
-        systemVelocity_(0.0),
-        config_(config),
-        pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
-    {
-        mtGen_.seed(0);//time(NULL));
-    }
+    Simulation(const Configuration& config);
 
     void run(double endTime, PeriodicCallback& outputCondition);
-    bool init(void); //TODO: Perhaps move to constructor.
 
     const std::vector<Particle>& getParticles(void)const{
         return particles_;

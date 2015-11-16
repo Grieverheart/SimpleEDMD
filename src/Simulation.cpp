@@ -371,11 +371,20 @@ void Simulation::runCellCrossEvent(const ParticleEvent& event){
     eventManager_.update(pid);
 }
 
-bool Simulation::init(void){
+//TODO: Perhaps add exceptions to constructor
+Simulation::Simulation(const Configuration& config):
+    time_(0.0),
+    closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
+    systemVelocity_(0.0),
+    config_(config),
+    pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
+{
+    mtGen_.seed(0);//time(NULL));
+
     auto n_part = particles_.size();
 
     if(n_part) eventManager_.resize(n_part);
-    else return false;
+    else return;
 
     //Initialize number of collisions to zero
     nCollisions_.resize(n_part, 0);
@@ -420,8 +429,6 @@ bool Simulation::init(void){
     }
 
     eventManager_.init();
-
-    return true;
 }
 
 void Simulation::run(double endTime, PeriodicCallback& outputCondition){
