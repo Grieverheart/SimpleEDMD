@@ -88,15 +88,15 @@ void readConfig(const char* filename, CubicPBC& pbc, std::vector<Particle>& part
 
 void saveConfig(const char* filename, double time, const Simulation& sim){
     FILE *fp = fopen(filename, "w");
-    size_t nSpheres = sim.getParticles().size();
-    const CubicPBC& pbc = sim.getPBC();
+    size_t nSpheres = sim.get_particles().size();
+    const CubicPBC& pbc = sim.get_pbc();
     fprintf(fp, "%lu\n", nSpheres);
     fprintf(fp, "%f\t0.0\t0.0\t0.0\t%f\t0.0\t0.0\t0.0\t%f\n", pbc.getSize(), pbc.getSize(), pbc.getSize());
 
-    const std::vector<Particle>& particles = sim.getParticles();
+    const std::vector<Particle>& particles = sim.get_particles();
     for(size_t i = 0; i < nSpheres; ++i){
         clam::Vec3d pos(particles[i].pos);
-        pos += particles[i].vel * (time - particles[i].time) - sim.getSystemVelocity() * time;
+        pos += particles[i].vel * (time - particles[i].time) - sim.get_system_velocity() * time;
         pos  = pbc.apply(pos);
         clam::Quatd rot = particles[i].rot;
         {
