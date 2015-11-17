@@ -11,7 +11,7 @@ public:
     CellList(void);
     ~CellList(void);
 
-    void init(int nPart, double boxSize, double minCellSize);
+    void init(int nPart, const clam::Vec3d& boxSize, double minCellSize);
     int add(int pid, const clam::Vec3d& pos);
     int update(int pid, const clam::Vec3d& pos);
     int move(int pid, int coffset);
@@ -38,28 +38,28 @@ private:
     int cell_index(const clam::Vec3d& pos)const;
 
 private:
-    int    nPart_;
-    int    nCells_;         //Number of cells in each dimension
-    int    nCellsTot_;
-    int*   cell_;           //First particle in cell
-    int*   linkedList_;
-    int*   pCellIds_;
-    int*   cellNeighbours_;
-    int*   cellDirNeighbours_;
-    int*   cellVolNeighbours_;
-    double cellSize_;       //Cell size in each dimension
+    int    n_part_;
+    int    n_cells_[3]; //Number of cells in each dimension
+    int    n_cells_tot_;
+    int*   cell_; //First particle in cell
+    int*   linked_list_;
+    int*   p_cell_ids_;
+    int*   cell_neighbours_;
+    int*   cell_dir_neighbours_;
+    int*   cell_vol_neighbours_;
+    clam::Vec3d cell_size_; //Cell size in each dimension
 };
 
 class CellList::CellNeighbourIterator{
     friend class CellList;
 public:
     constexpr CellNeighbourIterator(const int* neighbour_list, int n_neighbours = 27):
-        cellNeighbours_(neighbour_list),
+        cell_neighbours_(neighbour_list),
         nidx_(0), end_(n_neighbours)
     {}
 
     constexpr CellNeighbourIterator begin(void)const{
-        return CellNeighbourIterator(cellNeighbours_, end_);
+        return CellNeighbourIterator(cell_neighbours_, end_);
     }
 
     CellNeighbourIterator end(void)const{
@@ -78,10 +78,10 @@ public:
     }
 
     constexpr int operator*(void)const{
-        return cellNeighbours_[nidx_];
+        return cell_neighbours_[nidx_];
     }
 private:
-    const int* cellNeighbours_;
+    const int* cell_neighbours_;
     int nidx_;
     int end_;
 };
@@ -123,7 +123,7 @@ class CellList::CellContentIterator{
 public:
     constexpr CellContentIterator(const CellList& parent, int cidx):
         first_pid(parent.cell_[cidx]), curr_pid(parent.cell_[cidx]),
-        linkedList_(parent.linkedList_)
+        linked_list_(parent.linked_list_)
     {}
 
     CellContentIterator begin(void)const{
@@ -143,13 +143,13 @@ public:
     }
 
     CellContentIterator& operator++(void){
-        curr_pid = linkedList_[curr_pid];
+        curr_pid = linked_list_[curr_pid];
         return *this;
     }
 
     CellContentIterator operator+(int num)const{
         auto ret = *this;
-        for(int i = 0; i < num; ++i) ret.curr_pid = ret.linkedList_[ret.curr_pid];
+        for(int i = 0; i < num; ++i) ret.curr_pid = ret.linked_list_[ret.curr_pid];
         return ret;
     }
 
@@ -159,7 +159,7 @@ public:
 private:
     int first_pid;
     int curr_pid;
-    const int* linkedList_;
+    const int* linked_list_;
 };
 
 #endif

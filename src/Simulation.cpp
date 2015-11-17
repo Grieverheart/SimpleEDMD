@@ -411,7 +411,7 @@ Simulation::Simulation(const Configuration& config):
         double outradius = particle.size * boost::apply_visitor(ShapeOutRadiusVisitor(), *shapes_[particle.shape_id]);
         max_radius = std::max(max_radius, outradius);
     }
-    cll_.init(n_part, pbc_.getSize()[0], 2.0 * max_radius + 0.01);//TODO: Make cell list also work for non-cubic containers.
+    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);//TODO: Make cell list also work for non-cubic containers.
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
