@@ -45,6 +45,7 @@ namespace{
         return false;
     }
 
+    //TODO: Move these to a utility file so they can be used by others.
     inline void stream_position(Particle& particle, double time){
         particle.pos += particle.vel * (time - particle.time);
     }

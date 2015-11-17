@@ -3,7 +3,7 @@
 --Implement conservative advancement.
 --Implement closest points function.
 --Implement collision resolution.
-Implement xml io.
+--Implement xml io.
 Implement NVT thermostat.
 Make into library?
 Implement hard walls.

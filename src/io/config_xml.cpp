@@ -87,7 +87,7 @@ bool xml_save_config(const char* filename, const Configuration& config){
         }fprintf(fp, "</definitions>\n");
         fprintf(fp, "<particles>\n");{
             for(auto particle: config.particles_){
-                print_particle(fp, particle, !config.shapes_.empty());
+                print_particle(fp, particle, config.shapes_.size() > 1);
             }
         }fprintf(fp, "</particles>\n");
     }fprintf(fp, "</sim>");
@@ -217,7 +217,7 @@ bool xml_load_config(const char* filename, Configuration& config){
             rot_element->FirstChildElement("w")->QueryDoubleText(&w);
             p.rot = clam::Quatd(x, y, z, w);
 
-            if(!config.shapes_.empty()){
+            if(config.shapes_.size() > 1){
                 p.shape_id = particle_element->FirstChildElement("shape")->UnsignedAttribute("id");
             }
             else{
