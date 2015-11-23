@@ -20,7 +20,6 @@ public:
 
     const std::vector<Particle>& get_particles(void)const;
     const RectangularPBC& get_pbc(void)const;
-    clam::Vec3d get_system_velocity(void)const;
     const Configuration& get_configuration(void)const;
 
 private:
@@ -34,7 +33,6 @@ private:
     double time_;
     double prev_time_;
     double closest_distance_tol_;
-    clam::Vec3d sys_vel_;
     std::vector<uint32_t> n_collisions_;
 
     Configuration config_;

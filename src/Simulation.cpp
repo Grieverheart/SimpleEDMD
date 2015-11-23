@@ -380,10 +380,6 @@ const RectangularPBC& Simulation::get_pbc(void)const{
     return pbc_;
 }
 
-clam::Vec3d Simulation::get_system_velocity(void)const{
-    return sys_vel_;
-}
-
 const Configuration& Simulation::get_configuration(void)const{
     return config_;
 }
@@ -392,7 +388,6 @@ const Configuration& Simulation::get_configuration(void)const{
 Simulation::Simulation(const Configuration& config):
     time_(0.0),
     closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
-    sys_vel_(0.0),
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
@@ -416,6 +411,7 @@ Simulation::Simulation(const Configuration& config):
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
+    clam::Vec3d sys_vel;
     for(size_t i = 0; i < n_part; ++i){
         double x1, x2, r;
         do{
@@ -426,11 +422,13 @@ Simulation::Simulation(const Configuration& config):
         double s = 2.0 * sqrt(1.0 - r);
         clam::Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
 
-        sys_vel_  += vec;
+        sys_vel += vec;
         particles_[i].vel = vec;
         cll_.add(i, particles_[i].pos);
     }
-    sys_vel_ = sys_vel_ * (1.0 / n_part);
+    sys_vel = sys_vel * (1.0 / n_part);
+
+    for(size_t i = 0; i < n_part; ++i) particles_[i].vel -= sys_vel;
 
     foreach_pair(cll_, [this](int i, int j) -> bool {
         auto event = get_collision_event(i, j);
@@ -456,7 +454,6 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
         ParticleEvent next_event = event_mgr_.getNextEvent();
         prev_time_ = time_;
         time_ = next_event.time_;
-        printf("%.16lf, %d, %d\n", time_, n_events, next_event.get_type());
 
         switch(next_event.get_type()){
         case PE_COLLISION:
@@ -474,7 +471,7 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
             break;
         }
 
-        output_condition(next_event.time_);
+        output_condition(time_);
 
         if(time_ >= end_time) running = false;
     }
