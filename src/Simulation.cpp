@@ -75,8 +75,9 @@ namespace{
 
     class ShapeCollisionResolutionVisitor: public boost::static_visitor<bool> {
     public:
-        ShapeCollisionResolutionVisitor(Particle& pa, Particle& pb, const RectangularPBC& pbc):
-            pa_(pa), pb_(pb), pbc_(pbc)
+        ShapeCollisionResolutionVisitor(Particle& pa, Particle& pb, const RectangularPBC& pbc, double& momentum_transfer):
+            pa_(pa), pb_(pb), pbc_(pbc),
+            momentum_transfer_(momentum_transfer)
         {}
 
         template<typename T, typename U>
@@ -102,6 +103,8 @@ namespace{
             double momentum_delta = 
                 2.0 * clam::dot(normal, rel_vel) /
                 (2.0 + tangent_a.length2()  + tangent_b.length2());
+
+            momentum_transfer_ = momentum_delta * clam::dot(normal, rel_pos);
 
             pa_.vel += momentum_delta * normal;
             pb_.vel -= momentum_delta * normal;
@@ -130,6 +133,7 @@ namespace{
         Particle& pa_;
         Particle& pb_;
         const RectangularPBC& pbc_;
+        double& momentum_transfer_;
     };
 }
 
@@ -273,8 +277,9 @@ void Simulation::run_collision_event(const ParticleEvent& event){
     update_particle(particles_[pB], time_, pbc_);
 
     //Resolve collision.
+    double momentum_transfer = 0.0;
     bool resolved = boost::apply_visitor(
-        ShapeCollisionResolutionVisitor(particles_[pA], particles_[pB], pbc_),
+        ShapeCollisionResolutionVisitor(particles_[pA], particles_[pB], pbc_, momentum_transfer),
         *shapes_[particles_[pA].shape_id], *shapes_[particles_[pB].shape_id]
     );
 
@@ -294,6 +299,8 @@ void Simulation::run_collision_event(const ParticleEvent& event){
         }
         return;
     }
+
+    av_momentum_transfer_ += momentum_transfer;
 
     ++n_collisions_[pA];
     ++n_collisions_[pB];
@@ -341,12 +348,12 @@ void Simulation::run_possible_collision_event(const ParticleEvent& event){
     int pA = event.pid_;
     int pB = event.get_id();
 
-    update_particle(particles_[pA], time_, pbc_);
-
     if(n_collisions_[pB] != event.optional_){
         event_mgr_.update(pA);
         return;
     }
+
+    update_particle(particles_[pA], time_, pbc_);
 
     auto new_event = get_collision_event(pA, pB);
     if(new_event.get_type() != PE_NONE){
@@ -388,6 +395,7 @@ const Configuration& Simulation::get_configuration(void)const{
 Simulation::Simulation(const Configuration& config):
     time_(0.0),
     closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
+    av_momentum_transfer_(0.0),
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
@@ -407,7 +415,7 @@ Simulation::Simulation(const Configuration& config):
         double outradius = particle.size * boost::apply_visitor(ShapeOutRadiusVisitor(), *shapes_[particle.shape_id]);
         max_radius = std::max(max_radius, outradius);
     }
-    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);//TODO: Make cell list also work for non-cubic containers.
+    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
 
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
@@ -424,6 +432,7 @@ Simulation::Simulation(const Configuration& config):
 
         sys_vel += vec;
         particles_[i].vel = vec;
+        particles_[i].pos = pbc_.apply(particles_[i].pos); //Make sure pbc are correct at start.
         cll_.add(i, particles_[i].pos);
     }
     sys_vel = sys_vel * (1.0 / n_part);
@@ -432,9 +441,15 @@ Simulation::Simulation(const Configuration& config):
 
     foreach_pair(cll_, [this](int i, int j) -> bool {
         auto event = get_collision_event(i, j);
-        if(event.get_id() != PE_NONE){
-            event_mgr_.push(i, event);
-        }
+        if(event.get_type() != PE_NONE) event_mgr_.push(i, event);
+//Check for overlaps at start of simulation.
+#ifndef NDEBUG
+        Particle pa = particles_[i];
+        Particle pb = particles_[j];
+        pb.pos = pbc_.minImage(pb.pos - pa.pos);
+        pa.pos = 0.0;
+        assert(overlap::shape_overlap(pa, *shapes_[pa.shape_id], pb, *shapes_[pb.shape_id]) == false);
+#endif
         return false;
     });
 
@@ -475,5 +490,9 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
 
         if(time_ >= end_time) running = false;
     }
+}
+
+double Simulation::get_stress(void)const{
+    return av_momentum_transfer_;
 }
 

@@ -21,6 +21,7 @@ public:
     const std::vector<Particle>& get_particles(void)const;
     const RectangularPBC& get_pbc(void)const;
     const Configuration& get_configuration(void)const;
+    double get_stress(void)const;
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;
@@ -33,6 +34,9 @@ private:
     double time_;
     double prev_time_;
     double closest_distance_tol_;
+
+    double av_momentum_transfer_;
+
     std::vector<uint32_t> n_collisions_;
 
     Configuration config_;

@@ -4,6 +4,8 @@
 --Implement closest points function.
 --Implement collision resolution.
 --Implement xml io.
-Implement NVT thermostat.
+Add simulation time reset function.
+Accept vector of PeriodicCallbacks.
+Add more shapes.
 Make into library?
 Implement hard walls.

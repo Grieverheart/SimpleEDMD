@@ -44,15 +44,22 @@ int main(int argc, char *argv[]){
     output.setCallback([&sim](double time){
         static int nFiles = 0;
         Configuration config = sim.get_configuration();
+        double kinetic = 0.0;
         for(auto& particle: config.particles_){
             update_particle(particle, time, config.pbc_);
+            kinetic += 0.5 * particle.vel.length2();
         }
         char buff[64];
         sprintf(buff, "Data/pid%u.%06u.xml", getpid(), ++nFiles);
         xml_save_config(buff, config);
+        clam::Vec3d box_size = config.pbc_.getSize();
+        double volume = box_size[0] * box_size[1] * box_size[2];
+        double kT = 2.0 * kinetic / (3.0 * config.particles_.size());
+        double pressure = (config.particles_.size() - sim.get_stress() / (3.0 * time * kT)) / volume;
+        printf("%f\t%f\n", pressure, kT);
     });
 
-    sim.run(1.0, output);
+    sim.run(1000.0, output);
 
     return 0;
 }
