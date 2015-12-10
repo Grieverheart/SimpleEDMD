@@ -2,15 +2,14 @@
 #define __PARTICLE_H
 
 #include "clam.h"
+#include "transformation.h"
 
 struct Particle{
     Particle(void):
         time(0.0)
     {}
     double time;
-    double size;
-    clam::Vec3d pos;
-    clam::Quatd rot;
+    Transformation xform_;
     clam::Vec3d vel;
     clam::Vec3d ang_vel;
     size_t shape_id;

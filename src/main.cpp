@@ -7,7 +7,7 @@
 #include "io/config_xml.h"
 
 inline void stream_position(Particle& particle, double time){
-    particle.pos += particle.vel * (time - particle.time);
+    particle.xform_.pos_ += particle.vel * (time - particle.time);
 }
 
 inline void stream_rotation(Particle& particle, double time){
@@ -16,7 +16,7 @@ inline void stream_rotation(Particle& particle, double time){
     if(l > 0.0){
         double sl, cl;
         sincos(l, &sl, &cl);
-        particle.rot = clam::Quatd(ha * (sl / l), cl) * particle.rot;
+        particle.xform_.rot_ = clam::Quatd(ha * (sl / l), cl) * particle.xform_.rot_;
     }
 }
 
@@ -24,7 +24,7 @@ inline void update_particle(Particle& particle, double time, const RectangularPB
     if(particle.time < time){
         stream_position(particle, time);
         stream_rotation(particle, time);
-        particle.pos = pbc.apply(particle.pos);
+        particle.xform_.pos_ = pbc.apply(particle.xform_.pos_);
         particle.time = time;
     }
 }

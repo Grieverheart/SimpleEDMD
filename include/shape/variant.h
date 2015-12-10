@@ -7,8 +7,9 @@
 
 class ShapeOutRadiusVisitor: public boost::static_visitor<double>{
 public:
-    double operator()(const shape::Polyhedron& poly)const{
-        return poly.out_radius();
+    template<typename T>
+    double operator()(const T& shape)const{
+        return shape.out_radius();
     }
 
     double operator()(const shape::Sphere& sph)const{

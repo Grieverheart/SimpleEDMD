@@ -35,6 +35,10 @@ public:
         return ret;
     }
 
+    std::string operator()(const shape::Complex& comp)const{
+        return "";
+    }
+
     std::string operator()(const shape::Sphere& sph)const{
         std::string ret("<shape type=\"sphere\">\n");
         ret += "<radius>" + std::to_string(sph.radius()) + "</radius>";
@@ -52,12 +56,12 @@ void print_particle(FILE* fp, const Particle& particle, bool should_print_shape_
     fprintf(fp, "<particle>\n");
 
     fprintf(fp, "<pos>\n");
-    fprintf(fp, "<x>%lf</x><y>%lf</y><z>%lf</z>\n", particle.pos[0], particle.pos[1], particle.pos[2]);
+    fprintf(fp, "<x>%lf</x><y>%lf</y><z>%lf</z>\n", particle.xform_.pos_[0], particle.xform_.pos_[1], particle.xform_.pos_[2]);
     fprintf(fp, "</pos>\n");
 
     //TODO: Perhaps skip this if the particle shape is a sphere?
     fprintf(fp, "<quat>\n");
-    fprintf(fp, "<x>%lf</x><y>%lf</y><z>%lf</z><w>%lf</w>\n", particle.rot[0], particle.rot[1], particle.rot[2], particle.rot[3]);
+    fprintf(fp, "<x>%lf</x><y>%lf</y><z>%lf</z><w>%lf</w>\n", particle.xform_.rot_[0], particle.xform_.rot_[1], particle.xform_.rot_[2], particle.xform_.rot_[3]);
     fprintf(fp, "</quat>\n");
 
     if(should_print_shape_id) fprintf(fp, "<shape id=\"%lu\"/>\n", particle.shape_id);
@@ -208,14 +212,14 @@ bool xml_load_config(const char* filename, Configuration& config){
             pos_element->FirstChildElement("x")->QueryDoubleText(&x);
             pos_element->FirstChildElement("y")->QueryDoubleText(&y);
             pos_element->FirstChildElement("z")->QueryDoubleText(&z);
-            p.pos = clam::Vec3d(x, y, z);
+            p.xform_.pos_ = clam::Vec3d(x, y, z);
 
             const XMLElement* rot_element = particle_element->FirstChildElement("quat");
             rot_element->FirstChildElement("x")->QueryDoubleText(&x);
             rot_element->FirstChildElement("y")->QueryDoubleText(&y);
             rot_element->FirstChildElement("z")->QueryDoubleText(&z);
             rot_element->FirstChildElement("w")->QueryDoubleText(&w);
-            p.rot = clam::Quatd(x, y, z, w);
+            p.xform_.rot_ = clam::Quatd(x, y, z, w);
 
             if(config.shapes_.size() > 1){
                 p.shape_id = particle_element->FirstChildElement("shape")->UnsignedAttribute("id");
@@ -225,8 +229,8 @@ bool xml_load_config(const char* filename, Configuration& config){
             }
 
             const XMLElement* size_element = particle_element->FirstChildElement("size");
-            if(!size_element) p.size = 1.0;
-            else size_element->QueryDoubleText(&p.size);
+            if(!size_element) p.xform_.size_ = 1.0;
+            else size_element->QueryDoubleText(&p.xform_.size_);
 
             config.particles_.push_back(p);
         }

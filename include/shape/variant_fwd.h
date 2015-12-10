@@ -12,6 +12,7 @@ namespace shape{
 
     class Polyhedron;
     class Sphere;
+    class Complex;
 
     enum eShapeTypes{
         POLYHEDRON = 0,
@@ -19,7 +20,7 @@ namespace shape{
         N_SHAPE_TYPES
     };
 
-    using Variant = boost::variant<Polyhedron, Sphere>;
+    using Variant = boost::variant<Polyhedron, Sphere, Complex>;
 }
 
 #endif

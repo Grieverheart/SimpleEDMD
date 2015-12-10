@@ -10,7 +10,7 @@ namespace overlap{
 
         class ShapeDistanceVisitor: public boost::static_visitor<clam::Vec3d> {
         public:
-            ShapeDistanceVisitor(const Particle& pa, const Particle& pb):
+            ShapeDistanceVisitor(const Transformation& pa, const Transformation& pb):
                 pa_(pa), pb_(pb)
             {}
 
@@ -19,15 +19,28 @@ namespace overlap{
                 return gjk_distance(pa_, a, pb_, b);
             }
 
-        private:
-            const Particle& pa_;
-            const Particle& pb_;
-        };
+            clam::Vec3d operator()(const shape::Sphere& a, const shape::Sphere& b)const{
+                return pb_.pos_ - pa_.pos_ - pa_.size_ * a.radius() - pb_.size_ * b.radius();
+            }
 
-        template<>
-        inline clam::Vec3d ShapeDistanceVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            return pb_.pos - pa_.pos - pa_.size * a.radius() - pb_.size * b.radius();
-        }
+            template<typename T>
+            clam::Vec3d operator()(const shape::Complex& a, const T& b)const{
+                return 0.0;
+            }
+
+            template<typename T>
+            clam::Vec3d operator()(const T& a, const shape::Complex& b)const{
+                return 0.0;
+            }
+
+            clam::Vec3d operator()(const shape::Complex& a, const shape::Complex& b)const{
+                return 0.0;
+            }
+
+        private:
+            const Transformation& pa_;
+            const Transformation& pb_;
+        };
 
         //TODO: Move to separate header file
         template<typename T>
@@ -37,7 +50,7 @@ namespace overlap{
 
         class ShapeOverlapVisitor: public boost::static_visitor<bool> {
         public:
-            ShapeOverlapVisitor(const Particle& pa, const Particle& pb, double feather):
+            ShapeOverlapVisitor(const Transformation& pa, const Transformation& pb, double feather):
                 pa_(pa), pb_(pb), feather_(feather)
             {}
 
@@ -46,20 +59,33 @@ namespace overlap{
                 return gjk_boolean(pa_, a, pb_, b, feather_);
             }
 
+            bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
+                return (pb_.pos_ - pa_.pos_).length2() < sqr(pa_.size_ * a.radius() + pb_.size_ * b.radius() + feather_);
+            }
+
+            template<typename T>
+            bool operator()(const shape::Complex& a, const T& b)const{
+                return false;
+            }
+
+            template<typename T>
+            bool operator()(const T& a, const shape::Complex& b)const{
+                return false;
+            }
+
+            bool operator()(const shape::Complex& a, const shape::Complex& b)const{
+                return false;
+            }
+
         private:
-            const Particle& pa_;
-            const Particle& pb_;
+            const Transformation& pa_;
+            const Transformation& pb_;
             double feather_;
         };
 
-        template<>
-        inline bool ShapeOverlapVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            return (pb_.pos - pa_.pos).length2() < sqr(pa_.size * a.radius() + pb_.size * b.radius() + feather_);
-        }
-
         class ShapeRaycastVisitor: public boost::static_visitor<bool> {
         public:
-            ShapeRaycastVisitor(const Particle& pa, const Particle& pb, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal):
+            ShapeRaycastVisitor(const Transformation& pa, const Transformation& pb, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal):
                 pa_(pa), pb_(pb), ray_dir_(ray_dir), dist_(distance), normal_(normal)
             {}
 
@@ -68,29 +94,42 @@ namespace overlap{
                 return gjk_raycast(pa_, a, pb_, b, ray_dir_, dist_, normal_);
             }
 
+            bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
+                return sphere_raycast(pa_.size_ * a.radius() + pb_.size_ * b.radius(), pa_.pos_ - pb_.pos_, ray_dir_, dist_, &normal_);
+            }
+
+            template<typename T>
+            bool operator()(const shape::Complex& a, const T& b)const{
+                return false;
+            }
+
+            template<typename T>
+            bool operator()(const T& a, const shape::Complex& b)const{
+                return false;
+            }
+
+            bool operator()(const shape::Complex& a, const shape::Complex& b)const{
+                return false;
+            }
+
         private:
-            const Particle& pa_;
-            const Particle& pb_;
+            const Transformation& pa_;
+            const Transformation& pb_;
             const clam::Vec3d& ray_dir_;
             double& dist_;
             clam::Vec3d& normal_;
         };
-
-        template<>
-        inline bool ShapeRaycastVisitor::operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            return sphere_raycast(pa_.size * a.radius() + pb_.size * b.radius(), pa_.pos - pb_.pos, ray_dir_, dist_, &normal_);
-        }
     }//namespace detail
 
-    clam::Vec3d shape_distance(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b){
+    clam::Vec3d shape_distance(const Transformation& pa, const shape::Variant& a, const Transformation& pb, const shape::Variant& b){
         return boost::apply_visitor(ShapeDistanceVisitor(pa, pb), a, b);
     }
 
-    bool shape_overlap(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b, double feather){
+    bool shape_overlap(const Transformation& pa, const shape::Variant& a, const Transformation& pb, const shape::Variant& b, double feather){
         return boost::apply_visitor(ShapeOverlapVisitor(pa, pb, feather), a, b);
     }
 
-    bool shape_raycast(const Particle& pa, const shape::Variant& a, const Particle& pb, const shape::Variant& b, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal){
+    bool shape_raycast(const Transformation& pa, const shape::Variant& a, const Transformation& pb, const shape::Variant& b, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal){
         return boost::apply_visitor(ShapeRaycastVisitor(pa, pb, ray_dir, distance, normal), a, b);
     }
 

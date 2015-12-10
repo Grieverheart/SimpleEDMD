@@ -611,22 +611,22 @@ namespace overlap{
     };//namespace
 
     Vec3d gjk_distance(
-        const Particle& pa, const shape::Convex& a,
-        const Particle& pb, const shape::Convex& b,
+        const Transformation& pa, const shape::Convex& a,
+        const Transformation& pb, const shape::Convex& b,
         double feather
     ){
         //auto dir = Vec3d(0.0);
-        auto dir = pb.pos - pa.pos;
+        auto dir = pb.pos_ - pa.pos_;
         Simplex S;
 
         uint fail_safe = 0;
 
-        auto inv_rot_a = pa.rot.inv();
-        auto inv_rot_b = pb.rot.inv();
+        auto inv_rot_a = pa.rot_.inv();
+        auto inv_rot_b = pb.rot_.inv();
 
         while(fail_safe++ < 20){
-            auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
-            auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
+            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_* a.support(inv_rot_a.rotate(dir)));
+            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_* b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b + ((feather > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
 
             const Vec3d& last = S.get_last_point();
@@ -645,22 +645,22 @@ namespace overlap{
     }
 
     Vec3d gjk_closest_points(
-        const Particle& pa, const shape::Convex& a,
-        const Particle& pb, const shape::Convex& b,
+        const Transformation& pa, const shape::Convex& a,
+        const Transformation& pb, const shape::Convex& b,
         Vec3d& point_on_a, Vec3d& point_on_b
     ){
         //auto dir = Vec3d(0.0);
-        auto dir = pb.pos - pa.pos;
+        auto dir = pb.pos_ - pa.pos_;
         Simplex S;
 
         uint fail_safe = 0;
 
-        auto inv_rot_a = pa.rot.inv();
-        auto inv_rot_b = pb.rot.inv();
+        auto inv_rot_a = pa.rot_.inv();
+        auto inv_rot_b = pb.rot_.inv();
 
         while(fail_safe++ < 20){
-            auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
-            auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
+            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_* a.support(inv_rot_a.rotate(dir)));
+            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_* b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b;
 
             const Vec3d& last = S.get_last_point();
@@ -683,21 +683,21 @@ namespace overlap{
     }
 
     bool gjk_boolean(
-        const Particle& pa, const shape::Convex& a,
-        const Particle& pb, const shape::Convex& b,
+        const Transformation& pa, const shape::Convex& a,
+        const Transformation& pb, const shape::Convex& b,
         double feather
     ){
-        auto dir = pb.pos - pa.pos;
+        auto dir = pb.pos_ - pa.pos_;
         Simplex S;
 
         uint fail_safe = 0;
 
-        auto inv_rot_a = pa.rot.inv();
-        auto inv_rot_b = pb.rot.inv();
+        auto inv_rot_a = pa.rot_.inv();
+        auto inv_rot_b = pb.rot_.inv();
 
         while(fail_safe++ < 30){
-            auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
-            auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
+            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_* a.support(inv_rot_a.rotate(dir)));
+            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_* b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b + ((feather > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
             double dn = dot(dir, new_point);
             if(dn < 0.0 || S.contains(new_point)) return false;
@@ -711,13 +711,13 @@ namespace overlap{
     }
 
     bool gjk_raycast(
-        const Particle& pa, const shape::Convex& a,
-        const Particle& pb, const shape::Convex& b,
+        const Transformation& pa, const shape::Convex& a,
+        const Transformation& pb, const shape::Convex& b,
         const Vec3d& ray_dir, double& distance,
         clam::Vec3d& normal
     )
     {
-        Vec3d dir = pb.pos - pa.pos;
+        Vec3d dir = pb.pos_ - pa.pos_;
         Simplex S;
 
         uint fail_safe = 0;
@@ -725,12 +725,12 @@ namespace overlap{
         Vec3d x(0.0);
         double lambda = 0.0;
 
-        auto inv_rot_a = pa.rot.inv();
-        auto inv_rot_b = pb.rot.inv();
+        auto inv_rot_a = pa.rot_.inv();
+        auto inv_rot_b = pb.rot_.inv();
 
         while(fail_safe++ < 100){
-            auto vertex_a = pa.pos + pa.rot.rotate(pa.size * a.support(inv_rot_a.rotate(dir)));
-            auto vertex_b = pb.pos + pb.rot.rotate(pb.size * b.support(inv_rot_b.rotate(-dir)));
+            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_* a.support(inv_rot_a.rotate(dir)));
+            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_* b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b;
 
             Vec3d new_point_trans = new_point - x;
@@ -762,7 +762,7 @@ namespace overlap{
         distance = lambda;
         normal = dir / dir.length();
         ///printf("Encountered error in GJK raycast: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
-        //auto test = pb.pos - pa.pos;
+        //auto test = pb.pos_ - pa.pos_;
         //for(int i = 0; i < n_ls; ++i) printf("%f, %f, %f\n", lambdas[i][0], lambdas[i][1], lambdas[i][2]);
         //printf("Encountered error in GJK raycast: Infinite Loop.\n Direction (%f, %f, %f)\n", test[0], test[1], test[2]);
         //printf("%f: %f, %f, %f\n", distance, ray_dir[0], ray_dir[1], ray_dir[2]);

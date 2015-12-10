@@ -3,5 +3,6 @@
 
 #include "sphere.h"
 #include "polyhedron.h"
+#include "complex.h"
 
 #endif
