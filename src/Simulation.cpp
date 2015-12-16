@@ -151,6 +151,132 @@ namespace{
     };
 }
 
+class Simulation::ShapeOffsetCollisionEventVisitor: public boost::static_visitor<ParticleEvent> {
+public:
+    ShapeOffsetCollisionEventVisitor(const Simulation& sim, int pa_idx, const Transformation& ta, int pb_idx, const Transformation& tb):
+        sim_(sim), pa_idx_(pa_idx), pb_idx_(pb_idx),
+        ta_(ta), tb_(tb)
+    {}
+
+    template<typename T, typename U>
+    ParticleEvent operator()(const T& a, const U& b)const{
+        Particle partA = sim_.particles_[pa_idx_];
+        Particle partB = sim_.particles_[pb_idx_];
+        stream_rotation(partB, sim_.time_);
+        stream_position(partB, sim_.time_);
+
+        clam::Vec3d cm_dist = sim_.pbc_.minImage(partB.xform_.pos_ - partA.xform_.pos_);
+        double max_dist = max_overlap_distance(partA.xform_.size_, *sim_.shapes_[partA.shape_id], partB.xform_.size_, *sim_.shapes_[partB.shape_id]);
+
+        clam::Vec3d dist = cm_dist + (partB.xform_.rot_ * tb_.rot_).rotate(tb_.pos_) - (partA.xform_.rot_ * ta_.rot_).rotate(ta_.pos_);
+
+        if(dist.length() > max_dist + 2.0 * sim_.closest_distance_tol_){
+            double time(0.0);
+            clam::Vec3d rel_vel = partA.vel - partB.vel;
+            if(overlap::sphere_raycast(max_dist + 1.5 * sim_.closest_distance_tol_, dist, rel_vel, time)){
+                return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
+            }
+        }
+        else{
+            double time(0.0);
+
+            partB.xform_.pos_ = cm_dist;
+            partB.vel         = partB.vel - partA.vel;
+            partB.time        = 0.0;
+
+            partA.xform_.pos_ = 0.0;
+            partA.vel         = 0.0;
+            partA.time        = 0.0;
+
+            //TODO: Look into high iteration number!!!
+            while(true){
+                auto xform_a = partA.xform_ * ta_;
+                auto xform_b = partA.xform_ * tb_;
+                clam::Vec3d shortest_dist = overlap::gjk_distance(xform_a, a, xform_b, b, sim_.closest_distance_tol_);
+
+                double distance = shortest_dist.length();
+                clam::Vec3d shortest_dist_n = shortest_dist / distance;
+
+                /* Conservative advancement by Mirtich 1996 PhD Thesis */
+                //double out_radius_A = partA.xform_.size_ * shape_outradius(a);
+                //double out_radius_B = partB.xform_.size_ * shape_outradius(b);
+                //double max_vel = clam::dot(shortest_dist_n, partB.vel) +
+                //                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
+
+
+                /* Conservative advancement by Zhang et al. 2006: DOI 10.1007/s00371-006-0060-0 */
+                clam::Vec3d c1 = clam::cross(shortest_dist_n, partA.ang_vel);
+                clam::Vec3d c2 = clam::cross(shortest_dist_n, partB.ang_vel);
+                double boundA = clam::dot(c1, xform_a.rot_.rotate(xform_a.size_ * a.support(xform_a.rot_.inv().rotate(c1))));
+                double boundB = clam::dot(c2, xform_b.rot_.rotate(xform_b.size_ * b.support(xform_b.rot_.inv().rotate(c2))));
+                double max_vel = clam::dot(shortest_dist_n, partB.vel) + boundA + boundB;
+
+                if(max_vel < 0.0) break;
+
+                if(distance < sim_.closest_distance_tol_){
+                    int iter = 0;
+                    while(shortest_dist.length() < sim_.closest_distance_tol_){
+                        time *= 0.999;
+                        stream_position(partB, time);
+                        stream_rotation(partB, time);
+                        stream_rotation(partA, time);
+                        partB.time = time;
+                        partA.time = time;
+                        shortest_dist = overlap::gjk_distance(partA.xform_ * ta_, a, partB.xform_ * tb_, b, sim_.closest_distance_tol_);
+                        //This should happen for grazing collisions
+                        if(iter++ > 10) return ParticleEvent::None();
+                    }
+
+                    return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
+                }
+
+                double max_advance = distance / max_vel;
+                time += max_advance;
+
+                //No collision.
+                //NOTE: Why time > 1.0?
+                if(time < 0.0 || time > 1.0) break;
+
+                stream_position(partB, time);
+                stream_rotation(partB, time);
+                stream_rotation(partA, time);
+                partB.time = time;
+                partA.time = time;
+            }
+        }
+
+        return ParticleEvent::None();
+    }
+
+    ParticleEvent operator()(const shape::Complex& a, const shape::Complex& b)const{
+        assert(false);
+        return ParticleEvent::None();
+    }
+
+    template<typename T>
+    ParticleEvent operator()(const shape::Complex& a, const T& b)const{
+        assert(false);
+        return ParticleEvent::None();
+    }
+
+    template<typename T>
+    ParticleEvent operator()(const T& a, const shape::Complex& b)const{
+        assert(false);
+        return ParticleEvent::None();
+    }
+
+private:
+    const Simulation& sim_;
+    int pa_idx_;
+    int pb_idx_;
+    const Transformation& ta_;
+    const Transformation& tb_;
+};
+
+//TODO: pbc minimum image should be calculated outside this function for performance reasons.
+//To achieve this, we would have to pass Particle. We still have to pass the particle id for
+//the correct initialization of the returned event. This will also allow us to avoid streaming
+//the same particles multiple times for Complex shapes.
 class Simulation::ShapeCollisionEventVisitor: public boost::static_visitor<ParticleEvent> {
 public:
     ShapeCollisionEventVisitor(const Simulation& sim, int pa_idx, int pb_idx):
@@ -242,26 +368,107 @@ public:
     }
 
     ParticleEvent operator()(const shape::Complex& a, const shape::Complex& b)const{
-        //TODO:
-        //-- First check with out_radius for PossibleCollision.
-        //-- Then, for each pair in a, b:
-        //  -- Check for PossibleCollision.
-        //  -- Else, check with CA.
-        //
-        //NOTE: We probably have to create a new visitor for this.
-        //Or we can use the current one by extending it to take two
-        //additional arguments.
+        Particle partA = sim_.particles_[pa_idx_];
+        Particle partB = sim_.particles_[pb_idx_];
+        auto shape_a = sim_.shapes_[partA.shape_id];
+        auto shape_b = sim_.shapes_[partB.shape_id];
+        clam::Vec3d dist = sim_.pbc_.minImage(partB.xform_.pos_ + partB.vel * (sim_.time_ - partB.time) - partA.xform_.pos_);
+        double max_dist = max_overlap_distance(partA.xform_.size_, *shape_a, partB.xform_.size_, *shape_b);
 
+        if(dist.length() > max_dist + 2.0 * sim_.closest_distance_tol_){
+            double time(0.0);
+            clam::Vec3d rel_vel = partA.vel - partB.vel;
+            if(overlap::sphere_raycast(max_dist + 1.5 * sim_.closest_distance_tol_, dist, rel_vel, time)){
+                return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
+            }
+        }
+        else{
+            ParticleEvent min_event = ParticleEvent::None();
+            for(auto subshape_a: a.shapes()){
+                for(auto subshape_b: b.shapes()){
+                    auto event = boost::apply_visitor(
+                        ShapeOffsetCollisionEventVisitor(sim_, pa_idx_, subshape_a.xform_, pb_idx_, subshape_b.xform_),
+                        *subshape_a.shape_, *subshape_b.shape_
+                    );
+                    if(event.get_type() != PE_NONE){
+                        if(min_event.get_type() == PE_NONE || event.time_ < min_event.time_){
+                            min_event = event;
+                        }
+                    }
+                }
+            }
+            return min_event;
+        }
         return ParticleEvent::None();
     }
 
     template<typename T>
     ParticleEvent operator()(const shape::Complex& a, const T& b)const{
+        Particle partA = sim_.particles_[pa_idx_];
+        Particle partB = sim_.particles_[pb_idx_];
+        auto shape_a = sim_.shapes_[partA.shape_id];
+        auto shape_b = sim_.shapes_[partB.shape_id];
+        clam::Vec3d dist = sim_.pbc_.minImage(partB.xform_.pos_ + partB.vel * (sim_.time_ - partB.time) - partA.xform_.pos_);
+        double max_dist = max_overlap_distance(partA.xform_.size_, *shape_a, partB.xform_.size_, *shape_b);
+
+        if(dist.length() > max_dist + 2.0 * sim_.closest_distance_tol_){
+            double time(0.0);
+            clam::Vec3d rel_vel = partA.vel - partB.vel;
+            if(overlap::sphere_raycast(max_dist + 1.5 * sim_.closest_distance_tol_, dist, rel_vel, time)){
+                return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
+            }
+        }
+        else{
+            ParticleEvent min_event = ParticleEvent::None();
+            Transformation xform_b{clam::Vec3d(0.0), clam::Quatd(0.0, 0.0, 0.0, 1.0), 1.0};
+            for(auto subshape_a: a.shapes()){
+                auto event = boost::apply_visitor(
+                    ShapeOffsetCollisionEventVisitor(sim_, pa_idx_, subshape_a.xform_, pb_idx_, xform_b),
+                    *subshape_a.shape_, *sim_.shapes_[pb_idx_]
+                );
+                if(event.get_type() != PE_NONE){
+                    if(min_event.get_type() == PE_NONE || event.time_ < min_event.time_){
+                        min_event = event;
+                    }
+                }
+            }
+            return min_event;
+        }
         return ParticleEvent::None();
     }
 
     template<typename T>
     ParticleEvent operator()(const T& a, const shape::Complex& b)const{
+        Particle partA = sim_.particles_[pa_idx_];
+        Particle partB = sim_.particles_[pb_idx_];
+        auto shape_a = sim_.shapes_[partA.shape_id];
+        auto shape_b = sim_.shapes_[partB.shape_id];
+        clam::Vec3d dist = sim_.pbc_.minImage(partB.xform_.pos_ + partB.vel * (sim_.time_ - partB.time) - partA.xform_.pos_);
+        double max_dist = max_overlap_distance(partA.xform_.size_, *shape_a, partB.xform_.size_, *shape_b);
+
+        if(dist.length() > max_dist + 2.0 * sim_.closest_distance_tol_){
+            double time(0.0);
+            clam::Vec3d rel_vel = partA.vel - partB.vel;
+            if(overlap::sphere_raycast(max_dist + 1.5 * sim_.closest_distance_tol_, dist, rel_vel, time)){
+                return ParticleEvent::PossibleCollision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
+            }
+        }
+        else{
+            ParticleEvent min_event = ParticleEvent::None();
+            Transformation xform_a{clam::Vec3d(0.0), clam::Quatd(0.0, 0.0, 0.0, 1.0), 1.0};
+            for(auto subshape_b: b.shapes()){
+                auto event = boost::apply_visitor(
+                    ShapeOffsetCollisionEventVisitor(sim_, pa_idx_, xform_a, pb_idx_, subshape_b.xform_),
+                    *sim_.shapes_[pa_idx_], *subshape_b.shape_
+                );
+                if(event.get_type() != PE_NONE){
+                    if(min_event.get_type() == PE_NONE || event.time_ < min_event.time_){
+                        min_event = event;
+                    }
+                }
+            }
+            return min_event;
+        }
         return ParticleEvent::None();
     }
 

@@ -24,7 +24,7 @@ namespace shape{
             update_outradius();
         }
 
-        const std::vector<SubShape>& shapes(void){
+        const std::vector<SubShape>& shapes(void)const{
             return shapes_;
         }
 

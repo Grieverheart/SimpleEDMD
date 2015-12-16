@@ -23,18 +23,41 @@ namespace overlap{
                 return pb_.pos_ - pa_.pos_ - pa_.size_ * a.radius() - pb_.size_ * b.radius();
             }
 
+            clam::Vec3d operator()(const shape::Complex& a, const shape::Complex& b)const{
+                clam::Vec3d min_dist = clam::Vec3d(std::numeric_limits<double>::max());
+                for(auto subshape_a: a.shapes()){
+                    auto xform_a = pa_ * subshape_a.xform_;
+                    for(auto subshape_b: b.shapes()){
+                        auto xform_b = pb_ * subshape_b.xform_;
+                        clam::Vec3d dist = shape_distance(xform_a, *subshape_a.shape_, xform_b, *subshape_b.shape_);
+                        if(dist.length2() < min_dist.length2()) min_dist = dist;
+                    }
+                }
+                return min_dist;
+            }
+
             template<typename T>
             clam::Vec3d operator()(const shape::Complex& a, const T& b)const{
-                return 0.0;
+                clam::Vec3d min_dist = clam::Vec3d(std::numeric_limits<double>::max());
+                auto b_variant = shape::Variant(b);
+                for(auto subshape_a: a.shapes()){
+                    auto xform_a = pa_ * subshape_a.xform_;
+                    clam::Vec3d dist = shape_distance(xform_a, *subshape_a.shape_, pb_, b_variant);
+                    if(dist.length2() < min_dist.length2()) min_dist = dist;
+                }
+                return min_dist;
             }
 
             template<typename T>
             clam::Vec3d operator()(const T& a, const shape::Complex& b)const{
-                return 0.0;
-            }
-
-            clam::Vec3d operator()(const shape::Complex& a, const shape::Complex& b)const{
-                return 0.0;
+                clam::Vec3d min_dist = clam::Vec3d(std::numeric_limits<double>::max());
+                auto a_variant = shape::Variant(a);
+                for(auto subshape_b: b.shapes()){
+                    auto xform_b = pb_ * subshape_b.xform_;
+                    clam::Vec3d dist = shape_distance(pa_, a_variant, xform_b, *subshape_b.shape_);
+                    if(dist.length2() < min_dist.length2()) min_dist = dist;
+                }
+                return min_dist;
             }
 
         private:
@@ -63,17 +86,34 @@ namespace overlap{
                 return (pb_.pos_ - pa_.pos_).length2() < sqr(pa_.size_ * a.radius() + pb_.size_ * b.radius() + feather_);
             }
 
+            bool operator()(const shape::Complex& a, const shape::Complex& b)const{
+                for(auto subshape_a: a.shapes()){
+                    auto xform_a = pa_ * subshape_a.xform_;
+                    for(auto subshape_b: b.shapes()){
+                        auto xform_b = pb_ * subshape_b.xform_;
+                        if(shape_overlap(xform_a, *subshape_a.shape_, xform_b, *subshape_b.shape_, feather_)) return true;
+                    }
+                }
+                return false;
+            }
+
             template<typename T>
             bool operator()(const shape::Complex& a, const T& b)const{
+                auto b_variant = shape::Variant(b);
+                for(auto subshape_a: a.shapes()){
+                    auto xform_a = pa_ * subshape_a.xform_;
+                    if(shape_overlap(xform_a, *subshape_a.shape_, pb_, b_variant, feather_)) return true;
+                }
                 return false;
             }
 
             template<typename T>
             bool operator()(const T& a, const shape::Complex& b)const{
-                return false;
-            }
-
-            bool operator()(const shape::Complex& a, const shape::Complex& b)const{
+                auto a_variant = shape::Variant(a);
+                for(auto subshape_b: b.shapes()){
+                    auto xform_b = pb_ * subshape_b.xform_;
+                    if(shape_overlap(pa_, a_variant, xform_b, *subshape_b.shape_, feather_)) return true;
+                }
                 return false;
             }
 
@@ -81,43 +121,6 @@ namespace overlap{
             const Transformation& pa_;
             const Transformation& pb_;
             double feather_;
-        };
-
-        class ShapeRaycastVisitor: public boost::static_visitor<bool> {
-        public:
-            ShapeRaycastVisitor(const Transformation& pa, const Transformation& pb, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal):
-                pa_(pa), pb_(pb), ray_dir_(ray_dir), dist_(distance), normal_(normal)
-            {}
-
-            template<typename T, typename U>
-            bool operator()(const T& a, const U& b)const{
-                return gjk_raycast(pa_, a, pb_, b, ray_dir_, dist_, normal_);
-            }
-
-            bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-                return sphere_raycast(pa_.size_ * a.radius() + pb_.size_ * b.radius(), pa_.pos_ - pb_.pos_, ray_dir_, dist_, &normal_);
-            }
-
-            template<typename T>
-            bool operator()(const shape::Complex& a, const T& b)const{
-                return false;
-            }
-
-            template<typename T>
-            bool operator()(const T& a, const shape::Complex& b)const{
-                return false;
-            }
-
-            bool operator()(const shape::Complex& a, const shape::Complex& b)const{
-                return false;
-            }
-
-        private:
-            const Transformation& pa_;
-            const Transformation& pb_;
-            const clam::Vec3d& ray_dir_;
-            double& dist_;
-            clam::Vec3d& normal_;
         };
     }//namespace detail
 
@@ -127,10 +130,6 @@ namespace overlap{
 
     bool shape_overlap(const Transformation& pa, const shape::Variant& a, const Transformation& pb, const shape::Variant& b, double feather){
         return boost::apply_visitor(ShapeOverlapVisitor(pa, pb, feather), a, b);
-    }
-
-    bool shape_raycast(const Transformation& pa, const shape::Variant& a, const Transformation& pb, const shape::Variant& b, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal){
-        return boost::apply_visitor(ShapeRaycastVisitor(pa, pb, ray_dir, distance, normal), a, b);
     }
 
 }

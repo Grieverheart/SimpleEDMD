@@ -11,6 +11,14 @@ struct Transformation{
         pos_(pos), rot_(rot), size_(size)
     {}
 
+    Transformation operator*(const Transformation& other)const{
+        Transformation ret;
+        ret.pos_  = pos_ + size_ * rot_.rotate(other.pos_);
+        ret.rot_  = rot_ * other.rot_;
+        ret.size_ = size_ * other.size_;
+        return ret;
+    }
+
     clam::Vec3d pos_;
     clam::Quatd rot_;
     double size_;

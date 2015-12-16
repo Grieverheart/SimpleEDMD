@@ -10,7 +10,6 @@ namespace overlap{
     //TODO: Perhaps it's better if we pass pos, rot, instead of the whole particle.
     clam::Vec3d shape_distance(const Transformation&, const shape::Variant&, const Transformation&, const shape::Variant&);
     bool shape_overlap(const Transformation&, const shape::Variant&, const Transformation&, const shape::Variant&, double feather = 0.0);
-    bool shape_raycast(const Transformation&, const shape::Variant&, const Transformation&, const shape::Variant&, const clam::Vec3d& ray_dir, double& distance, clam::Vec3d& normal);
 
 }
 

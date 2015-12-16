@@ -50,6 +50,7 @@ private:
     std::mt19937 mtGen_;
 
     class ShapeCollisionEventVisitor;
+    class ShapeOffsetCollisionEventVisitor;
 };
 
 #endif
