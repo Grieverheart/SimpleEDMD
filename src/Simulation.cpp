@@ -366,7 +366,7 @@ public:
         for(auto subshape_a: a.shapes()){
             for(auto subshape_b: b.shapes()){
                 auto event = boost::apply_visitor(
-                    ShapeCollisionEventVisitor(sim_, pa_idx_, pb_idx_),
+                    ShapeOffsetCollisionEventVisitor(sim_, pa_idx_, subshape_a.xform_, pb_idx_, subshape_b.xform_),
                     *subshape_a.shape_, *subshape_b.shape_
                 );
                 if(event.get_type() != PE_NONE){
