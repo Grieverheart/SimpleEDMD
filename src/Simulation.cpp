@@ -6,15 +6,15 @@
 #include "overlap/gjk.h"
 #include "overlap/overlap.h"
 
-//static void print_particle(const Particle& p){
-//    printf("pos: glm::vec3(%e, %e, %e)\n", p.pos[0], p.pos[1], p.pos[2]);
-//    clam::Vec3d axis;
-//    double angle;
-//    p.rot.toAxisAngle(angle, axis);
-//    printf("rot: %e, glm::vec3(%e, %e, %e)\n", angle, axis[0], axis[1], axis[2]);
-//    printf("vel: glm::vec3(%e, %e, %e)\n", p.vel[0], p.vel[1], p.vel[2]);
-//    printf("ang_vel: glm::vec3(%e, %e, %e)\n", p.ang_vel[0], p.ang_vel[1], p.ang_vel[2]);
-//}
+static void print_particle(const Particle& p){
+    printf("pos: glm::vec3(%e, %e, %e)\n", p.pos[0], p.pos[1], p.pos[2]);
+    clam::Vec3d axis;
+    double angle;
+    p.rot.toAxisAngle(angle, axis);
+    printf("rot: %e, glm::vec3(%e, %e, %e)\n", angle, axis[0], axis[1], axis[2]);
+    printf("vel: glm::vec3(%e, %e, %e)\n", p.vel[0], p.vel[1], p.vel[2]);
+    printf("ang_vel: glm::vec3(%e, %e, %e)\n", p.ang_vel[0], p.ang_vel[1], p.ang_vel[2]);
+}
 
 namespace{
     template<typename T>
@@ -183,12 +183,23 @@ public:
                 //                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
 
 
-                /* Conservative advancement by Zhang et al. 2006: DOI 10.1007/s00371-006-0060-0 */
-                clam::Vec3d c1 = clam::cross(shortest_dist_n, partA.ang_vel);
-                clam::Vec3d c2 = clam::cross(shortest_dist_n, partB.ang_vel);
-                double boundA = clam::dot(c1, partA.rot.rotate(partA.size * a.support(partA.rot.inv().rotate(c1))));
-                double boundB = clam::dot(c2, partB.rot.rotate(partB.size * b.support(partB.rot.inv().rotate(c2))));
-                double max_vel = clam::dot(shortest_dist_n, partB.vel) + boundA + boundB;
+                /* Conservative advancement, tighter bound using support functions. */
+                //NOTE: Most probably is only correct for point symmetric particle shapes.
+                double max_vel = clam::dot(shortest_dist_n, partB.vel);
+                double abs_omega_A = partA.ang_vel.length();
+                if(abs_omega_A > 0.0){
+                    auto inv_rot_A = partA.rot.inv();
+                    clam::Vec3d c1  = inv_rot_A.rotate(clam::cross(partA.ang_vel, shortest_dist_n));
+                    clam::Vec3d c1p = clam::cross(inv_rot_A.rotate(partA.ang_vel), c1) / abs_omega_A;
+                    max_vel += clam::dot(c1, partA.size * a.support(c1)) + clam::dot(c1p, partA.size * a.support(c1p));
+                }
+                double abs_omega_B = partB.ang_vel.length();
+                if(abs_omega_B > 0.0){
+                    auto inv_rot_B = partB.rot.inv();
+                    clam::Vec3d c2  = inv_rot_B.rotate(clam::cross(partB.ang_vel, shortest_dist_n));
+                    clam::Vec3d c2p = clam::cross(inv_rot_B.rotate(partB.ang_vel), c2) / abs_omega_B;
+                    max_vel += clam::dot(c2, partB.size * b.support(c2)) + clam::dot(c2p, partB.size * b.support(c2p));
+                }
 
                 if(max_vel < 0.0) break;
 
@@ -202,7 +213,7 @@ public:
                         partB.time = time;
                         partA.time = time;
                         shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
-                        //This should happen for grazing collisions
+                        //NOTE: This should alsmost never happen.
                         if(iter++ > 10) return ParticleEvent::None();
                     }
 
@@ -212,9 +223,14 @@ public:
                 double max_advance = distance / max_vel;
                 time += max_advance;
 
-                //No collision.
-                //NOTE: Why time > 1.0?
-                if(time < 0.0 || time > 1.0) break;
+                //IMPORTANT: We should find a smarter way to set the upper bound
+                //of the collision time since a value of 1.0 is not enough for slower
+                //simulations. The separation time of the bounding spheres is a
+                //convenient but too conservative bound. Another possiblity is to
+                //use some conservative value at first and change it to the maximum
+                //in-flight time of the particles given enough time has passed, or
+                //allow the user to set it himself.
+                if(time < 0.0 || time > 1.0) break; //No collision.
 
                 stream_position(partB, time);
                 stream_rotation(partB, time);
@@ -430,6 +446,10 @@ Simulation::Simulation(const Configuration& config):
         double s = 2.0 * sqrt(1.0 - r);
         clam::Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
 
+        //IMPORTANT: If the particle lies exactly on the cell boundary, we get
+        //errors in the simulation. The time for the next cell crossing is
+        //correctly found to be 0.0, but the event calendar cannot handle
+        //simultaneous events.
         sys_vel += vec;
         particles_[i].vel = vec;
         particles_[i].pos = pbc_.apply(particles_[i].pos); //Make sure pbc are correct at start.

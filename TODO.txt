@@ -4,6 +4,8 @@
 --Implement closest points function.
 --Implement collision resolution.
 --Implement xml io.
+Use relative time to improve numerical precision.
+Add simulation serialization.
 Add simulation time reset function.
 Accept vector of PeriodicCallbacks.
 Add more shapes.
