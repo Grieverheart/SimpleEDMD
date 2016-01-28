@@ -75,9 +75,10 @@ namespace{
 
     class ShapeCollisionResolutionVisitor: public boost::static_visitor<bool> {
     public:
-        ShapeCollisionResolutionVisitor(Particle& pa, Particle& pb, const RectangularPBC& pbc, double& momentum_transfer):
+        ShapeCollisionResolutionVisitor(Particle& pa, Particle& pb, const RectangularPBC& pbc, double& momentum_transfer, double& kinetic_delta):
             pa_(pa), pb_(pb), pbc_(pbc),
-            momentum_transfer_(momentum_transfer)
+            momentum_transfer_(momentum_transfer),
+            kinetic_delta_(kinetic_delta)
         {}
 
         template<typename T, typename U>
@@ -102,12 +103,15 @@ namespace{
 
             double momentum_delta = 
                 2.0 * clam::dot(normal, rel_vel) /
-                (2.0 + tangent_a.length2()  + tangent_b.length2());
+                (2.0 + tangent_a.length2() + tangent_b.length2());
 
             momentum_transfer_ = momentum_delta * clam::dot(normal, rel_pos);
 
-            pa_.vel += momentum_delta * normal;
-            pb_.vel -= momentum_delta * normal;
+            clam::Vec3d vec_momentum_delta = momentum_delta * normal;
+            kinetic_delta_ = clam::dot(vec_momentum_delta, vec_momentum_delta + pa_.vel - pb_.vel);
+
+            pa_.vel += vec_momentum_delta;
+            pb_.vel -= vec_momentum_delta;
 
             pa_.ang_vel += momentum_delta * tangent_a;
             pb_.ang_vel -= momentum_delta * tangent_b;
@@ -116,6 +120,7 @@ namespace{
         }
 
         //Assume always resolved.
+        //TODO: Handle momentum_transfer
         bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
             clam::Vec3d rel_pos = pbc_.minImage(pa_.pos - pb_.pos);
             double dist2 = rel_pos.length2();
@@ -134,6 +139,7 @@ namespace{
         Particle& pb_;
         const RectangularPBC& pbc_;
         double& momentum_transfer_;
+        double& kinetic_delta_;
     };
 }
 
@@ -294,8 +300,9 @@ void Simulation::run_collision_event(const ParticleEvent& event){
 
     //Resolve collision.
     double momentum_transfer = 0.0;
+    double kinetic_delta = 0.0;
     bool resolved = boost::apply_visitor(
-        ShapeCollisionResolutionVisitor(particles_[pA], particles_[pB], pbc_, momentum_transfer),
+        ShapeCollisionResolutionVisitor(particles_[pA], particles_[pB], pbc_, momentum_transfer, kinetic_delta),
         *shapes_[particles_[pA].shape_id], *shapes_[particles_[pB].shape_id]
     );
 
@@ -317,6 +324,7 @@ void Simulation::run_collision_event(const ParticleEvent& event){
     }
 
     av_momentum_transfer_ += momentum_transfer;
+    kinetic_delta_ += kinetic_delta;
 
     ++n_collisions_[pA];
     ++n_collisions_[pB];
@@ -412,6 +420,7 @@ Simulation::Simulation(const Configuration& config):
     time_(0.0),
     closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
     av_momentum_transfer_(0.0),
+    av_kinetic_delta_(0.0), kinetic_delta_(0.0),
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
@@ -457,7 +466,10 @@ Simulation::Simulation(const Configuration& config):
     }
     sys_vel = sys_vel * (1.0 / n_part);
 
-    for(size_t i = 0; i < n_part; ++i) particles_[i].vel -= sys_vel;
+    for(size_t i = 0; i < n_part; ++i){
+        particles_[i].vel -= sys_vel;
+        base_kinetic_energy_ += 0.5 * particles_[i].vel.length2();
+    }
 
     foreach_pair(cll_, [this](int i, int j) -> bool {
         auto event = get_collision_event(i, j);
@@ -490,6 +502,8 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
         prev_time_ = time_;
         time_ = next_event.time_;
 
+        av_kinetic_delta_ += (time_ - prev_time_) * kinetic_delta_;
+
         switch(next_event.get_type()){
         case PE_COLLISION:
             ++n_events;
@@ -513,6 +527,10 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
 }
 
 double Simulation::get_stress(void)const{
-    return av_momentum_transfer_;
+    return av_momentum_transfer_ / time_;
+}
+
+double Simulation::get_kinetic_energy(void)const{
+    return base_kinetic_energy_ + av_kinetic_delta_ / time_;
 }
 

@@ -5,6 +5,7 @@
 #include "Simulation.h"
 #include "obj_loader.h"
 #include "io/config_xml.h"
+#include "overlap/overlap.h"
 
 inline void stream_position(Particle& particle, double time){
     particle.pos += particle.vel * (time - particle.time);
@@ -29,37 +30,77 @@ inline void update_particle(Particle& particle, double time, const RectangularPB
     }
 }
 
+double packing_fraction(const Configuration& config){
+    auto box_size = config.pbc_.getSize();
+    double volume = box_size[0] * box_size[1] * box_size[2];
+
+    //NOTE: Assume particle unit volume!
+    return config.particles_.size() / volume;
+}
+
+//TODO: Add function to reset simulation statistics (av_momentum_transfer).
 int main(int argc, char *argv[]){
 
+    Simulation* sim;
 
-    Configuration config;
-    xml_load_config(argv[1], config);
+    {
+        Configuration config;
+        xml_load_config(argv[1], config);
+        //Scale box and positions for reaching target_pf
+        {
+            double target_pf = atof(argv[2]);
+            double pf = packing_fraction(config);
+            double scale = pow(pf / target_pf, 1.0 / 3.0);
+            config.pbc_.setSize(scale * config.pbc_.getSize());
+            for(auto& particle: config.particles_) particle.pos = scale * particle.pos;
+        }
 
-    Simulation sim(config);
+        sim = new Simulation(config);
+    }
 
-    PeriodicCallback output(0.001);
+    PeriodicCallback output(0.01);
     output.setNextFunction([](double time){
-        return time + 0.1;
+        return time + 1.0;
     });
-    output.setCallback([&sim](double time){
+    output.setCallback([sim](double time){
         static int nFiles = 0;
-        Configuration config = sim.get_configuration();
+        Configuration config = sim->get_configuration();
+
         double kinetic = 0.0;
         for(auto& particle: config.particles_){
             update_particle(particle, time, config.pbc_);
             kinetic += 0.5 * particle.vel.length2();
         }
+
         char buff[64];
         sprintf(buff, "Data/pid%u.%06u.xml", getpid(), ++nFiles);
         xml_save_config(buff, config);
         clam::Vec3d box_size = config.pbc_.getSize();
         double volume = box_size[0] * box_size[1] * box_size[2];
         double kT = 2.0 * kinetic / (3.0 * config.particles_.size());
-        double pressure = (config.particles_.size() - sim.get_stress() / (3.0 * time * kT)) / volume;
-        printf("%f\t%f\n", pressure, kT);
+        double pressure = (config.particles_.size() - sim->get_stress() / (3.0 * kT)) / volume;
+        printf("%e: %f\t%f\n", time, pressure, kT);
+
+#ifndef NDEBUG
+        //Check for overlaps
+        bool overlaps = false;
+        for(size_t i = 0; i < config.particles_.size(); ++i){
+            for(size_t j = i + 1; j < config.particles_.size(); ++j){
+                Particle pa = config.particles_[i];
+                Particle pb = config.particles_[j];
+                pb.pos = config.pbc_.minImage(pb.pos - pa.pos);
+                pa.pos = 0.0;
+                if(overlap::shape_overlap(pa, *config.shapes_[pa.shape_id], pb, *config.shapes_[pb.shape_id])){
+                    printf("%lu, %lu\n", i, j);
+                    overlaps = true;
+                }
+            }
+        }
+        assert(overlaps == false);
+#endif
     });
 
-    sim.run(1000.0, output);
+    sim->run(1000.0, output);
 
     return 0;
 }

@@ -22,6 +22,7 @@ public:
     const RectangularPBC& get_pbc(void)const;
     const Configuration& get_configuration(void)const;
     double get_stress(void)const;
+    double get_kinetic_energy(void)const;
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;
@@ -36,6 +37,11 @@ private:
     double closest_distance_tol_;
 
     double av_momentum_transfer_;
+
+    //Split kinetic energy into base + delta for better accuracy.
+    double av_kinetic_delta_;
+    double base_kinetic_energy_;
+    double kinetic_delta_;
 
     std::vector<uint32_t> n_collisions_;
 
