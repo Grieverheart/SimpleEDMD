@@ -3,47 +3,41 @@
 
 #include "clam.h"
 #include <cassert>
+#include <cstdio>
 
 class RectangularPBC{
 public:
     RectangularPBC(void){}
 
     RectangularPBC(const clam::Vec3d& size):
-        size_(size), isize_(2.0 / size_)
+        size_(size), isize_(1.0 / size_)
     {}
 
-    //Assum -1.5B < Dx < 1.5B
+    //TODO: Check how accuracy affects simulation.
+
+    //NOTE: Note sure if this always works.
+    //Assumes -3.5B < Dx < Inf
     clam::Vec3d minImage(const clam::Vec3d& vec)const{
         clam::Vec3d retVec;
-    
-        retVec[0] = vec[0] - int(vec[0] * isize_[0]) * size_[0];
-        retVec[1] = vec[1] - int(vec[1] * isize_[1]) * size_[1];
-        retVec[2] = vec[2] - int(vec[2] * isize_[2]) * size_[2];
-
-        retVec[0] -= int(retVec[0] * isize_[0]) * size_[0];
-        retVec[1] -= int(retVec[1] * isize_[1]) * size_[1];
-        retVec[2] -= int(retVec[2] * isize_[2]) * size_[2];
-
-        assert((retVec[0] < 0.5 * size_[0]) && (retVec[0] > -0.5 * size_[0]));
-        assert((retVec[1] < 0.5 * size_[1]) && (retVec[1] > -0.5 * size_[1]));
-        assert((retVec[2] < 0.5 * size_[2]) && (retVec[2] > -0.5 * size_[2]));
+        for(int i = 0; i < 3; ++i){
+            retVec[i] = vec[i] + (3 - int(vec[i] * isize_[i] + 3.5)) * size_[i];
+            assert((retVec[i] - 0.5 * size_[i] < 1.0e-14) && (retVec[i] + 0.5 * size_[i] > -1.0e-14));
+        }
     
         return retVec;
     }
 
-    //TODO: Make this faster.
+    //Assumes -3.0B < pos < Inf
     clam::Vec3d apply(const clam::Vec3d& pos)const{
         clam::Vec3d retVec;
-
         for(int i = 0; i < 3; ++i){
-            retVec[i] = pos[i];
-            while(retVec[i] < 0.0) retVec[i] += size_[i];
-            while(retVec[i] >= size_[i]) retVec[i] -= size_[i];
+            //NOTE: It is important to do the computations like this, for precision
+            //reasons. If we were to elliminate terms, we would not get accurate results.
+            //The same goes for using division instead of multiplying by isize_.
+            double temp = pos[i] + 3.0 * size_[i];
+            retVec[i] = temp - int(temp / size_[i]) * size_[i];
+            assert((retVec[i] < size_[i]) && (retVec[i] >= 0.0));
         }
-
-        assert((retVec[0] < size_[0]) && (retVec[0] >= 0.0));
-        assert((retVec[1] < size_[1]) && (retVec[1] >= 0.0));
-        assert((retVec[2] < size_[2]) && (retVec[2] >= 0.0));
 
         return retVec;
     }
@@ -54,7 +48,7 @@ public:
 
     void setSize(const clam::Vec3d& size){
         size_  = size;
-        isize_ = 2.0 / size_;
+        isize_ = 1.0 / size_;
     }
 
 private:
