@@ -21,8 +21,10 @@ public:
     const std::vector<Particle>& get_particles(void)const;
     const RectangularPBC& get_pbc(void)const;
     const Configuration& get_configuration(void)const;
-    double get_stress(void)const;
-    double get_kinetic_energy(void)const;
+
+    void reset_statistics(void);
+    double get_average_stress(void)const;
+    double get_average_kinetic_energy(void)const;
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;
@@ -34,6 +36,7 @@ private:
 private:
     double time_;
     double prev_time_;
+    double statistics_start_time_;
     double closest_distance_tol_;
 
     double av_momentum_transfer_;

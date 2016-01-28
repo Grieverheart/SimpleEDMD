@@ -66,10 +66,8 @@ int main(int argc, char *argv[]){
         static int nFiles = 0;
         Configuration config = sim->get_configuration();
 
-        double kinetic = 0.0;
         for(auto& particle: config.particles_){
             update_particle(particle, time, config.pbc_);
-            kinetic += 0.5 * particle.vel.length2();
         }
 
         char buff[64];
@@ -77,8 +75,8 @@ int main(int argc, char *argv[]){
         xml_save_config(buff, config);
         clam::Vec3d box_size = config.pbc_.getSize();
         double volume = box_size[0] * box_size[1] * box_size[2];
-        double kT = 2.0 * kinetic / (3.0 * config.particles_.size());
-        double pressure = (config.particles_.size() - sim->get_stress() / (3.0 * kT)) / volume;
+        double kT = 2.0 * sim->get_average_kinetic_energy() / (3.0 * config.particles_.size());
+        double pressure = (config.particles_.size() - sim->get_average_stress() / (3.0 * kT)) / volume;
         printf("%e: %f\t%f\n", time, pressure, kT);
 
 #ifndef NDEBUG

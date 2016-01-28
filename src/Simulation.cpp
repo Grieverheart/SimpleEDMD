@@ -236,7 +236,7 @@ public:
                 //use some conservative value at first and change it to the maximum
                 //in-flight time of the particles given enough time has passed, or
                 //allow the user to set it himself.
-                if(time < 0.0 || time > 1.0) break; //No collision.
+                if(time < 0.0 || time > 5.0) break; //No collision.
 
                 stream_position(partB, time);
                 stream_rotation(partB, time);
@@ -418,6 +418,7 @@ const Configuration& Simulation::get_configuration(void)const{
 //TODO: Perhaps add exceptions to constructor
 Simulation::Simulation(const Configuration& config):
     time_(0.0),
+    statistics_start_time_(0.0),
     closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
     av_momentum_transfer_(0.0),
     av_kinetic_delta_(0.0), kinetic_delta_(0.0),
@@ -526,11 +527,17 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
     }
 }
 
-double Simulation::get_stress(void)const{
-    return av_momentum_transfer_ / time_;
+void Simulation::reset_statistics(void){
+    statistics_start_time_ = 0.0;
+    av_kinetic_delta_      = 0.0;
+    av_momentum_transfer_  = 0.0;
 }
 
-double Simulation::get_kinetic_energy(void)const{
-    return base_kinetic_energy_ + av_kinetic_delta_ / time_;
+double Simulation::get_average_stress(void)const{
+    return av_momentum_transfer_ / (time_ - statistics_start_time_);
+}
+
+double Simulation::get_average_kinetic_energy(void)const{
+    return base_kinetic_energy_ + av_kinetic_delta_ / (time_ - statistics_start_time_);
 }
 
