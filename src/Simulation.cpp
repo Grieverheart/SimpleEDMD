@@ -229,14 +229,10 @@ public:
                 double max_advance = distance / max_vel;
                 time += max_advance;
 
-                //IMPORTANT: We should find a smarter way to set the upper bound
-                //of the collision time since a value of 1.0 is not enough for slower
-                //simulations. The separation time of the bounding spheres is a
-                //convenient but too conservative bound. Another possiblity is to
-                //use some conservative value at first and change it to the maximum
-                //in-flight time of the particles given enough time has passed, or
-                //allow the user to set it himself.
-                if(time < 0.0 || time > 5.0) break; //No collision.
+                //NOTE: The separation time of the bounding spheres is a
+                //convenient but too conservative bound for the upper bound
+                //to the collision time.
+                if(time < 0.0 || time > sim_.max_collision_time_) break;
 
                 stream_position(partB, time);
                 stream_rotation(partB, time);
@@ -293,6 +289,13 @@ void Simulation::run_collision_event(const ParticleEvent& event){
     if(n_collisions_[pB] != event.optional_){
         event_mgr_.update(pA);
         return;
+    }
+
+    {
+        double time_diffA = time_ - particles_[pA].time;
+        double time_diffB = time_ - particles_[pB].time;
+        if(time_diffA > max_inflight_time_) max_inflight_time_ = time_diffA;
+        if(time_diffB > max_inflight_time_) max_inflight_time_ = time_diffB;
     }
 
     update_particle(particles_[pA], time_, pbc_);
@@ -419,13 +422,16 @@ const Configuration& Simulation::get_configuration(void)const{
 Simulation::Simulation(const Configuration& config):
     time_(0.0),
     statistics_start_time_(0.0),
-    closest_distance_tol_(1.0e-10), //@note: increase tolerance to increase performance.
+    closest_distance_tol_(1.0e-8), //@note: increase tolerance to increase performance.
+    max_collision_time_(5.0),
     av_momentum_transfer_(0.0),
     av_kinetic_delta_(0.0), kinetic_delta_(0.0),
+    max_inflight_time_(0.0),
+    n_collision_events_(0),
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
-    mtGen_.seed(0);//time(NULL));
+    mtGen_.seed(time(NULL));
 
     auto n_part = particles_.size();
 
@@ -462,7 +468,7 @@ Simulation::Simulation(const Configuration& config):
         //simultaneous events.
         sys_vel += vec;
         particles_[i].vel = vec;
-        particles_[i].pos = pbc_.apply(particles_[i].pos); //Make sure pbc are correct at start.
+        particles_[i].pos = pbc_.apply(particles_[i].pos + 0.1); //Make sure pbc are correct at start.
         cll_.add(i, particles_[i].pos);
     }
     sys_vel = sys_vel * (1.0 / n_part);
@@ -497,7 +503,6 @@ Simulation::Simulation(const Configuration& config):
 void Simulation::run(double end_time, PeriodicCallback& output_condition){
 
     bool running = true;
-    unsigned int n_events = 0;
     while(running){
         ParticleEvent next_event = event_mgr_.getNextEvent();
         prev_time_ = time_;
@@ -507,7 +512,7 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
 
         switch(next_event.get_type()){
         case PE_COLLISION:
-            ++n_events;
+            ++n_collision_events_;
             run_collision_event(next_event);
             break;
         case PE_POSSIBLE_COLLISION:
@@ -524,13 +529,24 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
         output_condition(time_);
 
         if(time_ >= end_time) running = false;
+
+        //Optimization: After we have collected enough events, we set the
+        //maximum time for which to search for collisions to 1.5 times
+        //the maximum in-flight time of each particle. Of course, it
+        //might still be possible to miss a collision, but unlikely.
+        if(n_collision_events_ == 40000) max_collision_time_ = 1.5 * max_inflight_time_;
     }
 }
 
 void Simulation::reset_statistics(void){
-    statistics_start_time_ = 0.0;
+    statistics_start_time_ = time_;
     av_kinetic_delta_      = 0.0;
     av_momentum_transfer_  = 0.0;
+    n_collision_events_    = 0;
+}
+
+int Simulation::get_num_collisions(void)const{
+    return n_collision_events_;
 }
 
 double Simulation::get_average_stress(void)const{

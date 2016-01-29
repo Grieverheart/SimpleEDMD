@@ -4,10 +4,12 @@
 --Implement closest points function.
 --Implement collision resolution.
 --Implement xml io.
+--Add simulation statics reset function.
 Use relative time to improve numerical precision.
 Add simulation serialization.
-Add simulation time reset function.
-Accept vector of PeriodicCallbacks.
+Improve simulation callback (PeriodicCallback).
+Try implementing TOI using SAT, and compare performance.
 Add more shapes.
+Implement Complex shapes.
 Make into library?
 Implement hard walls.

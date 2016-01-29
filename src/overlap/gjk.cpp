@@ -610,6 +610,7 @@ namespace overlap{
 
     };//namespace
 
+    //TODO: Recheck error bound.
     Vec3d gjk_distance(
         const Particle& pa, const shape::Convex& a,
         const Particle& pb, const shape::Convex& b,
@@ -640,10 +641,11 @@ namespace overlap{
             if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
         }
 
-        printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
+        //printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         return 0.0;
     }
 
+    //TODO: Recheck error bound.
     Vec3d gjk_closest_points(
         const Particle& pa, const shape::Convex& a,
         const Particle& pb, const shape::Convex& b,
@@ -678,7 +680,7 @@ namespace overlap{
             if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
         }
 
-        printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
+        //printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         return 0.0;
     }
 

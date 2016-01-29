@@ -21,6 +21,11 @@ public:
         clam::Vec3d retVec;
         for(int i = 0; i < 3; ++i){
             retVec[i] = vec[i] + (3 - int(vec[i] * isize_[i] + 3.5)) * size_[i];
+#ifndef NDEBUG
+            if((retVec[i] - 0.5 * size_[i] >= 1.0e-14) || (retVec[i] + 0.5 * size_[i] <= -1.0e-14)){
+                printf("%.16e, %.16e: %.16e, %.16e\n", retVec[i], 0.5 * size_[i], retVec[i] - 0.5 * size_[i], retVec[i] + 0.5 * size_[i]);
+            }
+#endif
             assert((retVec[i] - 0.5 * size_[i] < 1.0e-14) && (retVec[i] + 0.5 * size_[i] > -1.0e-14));
         }
     
@@ -36,6 +41,11 @@ public:
             //The same goes for using division instead of multiplying by isize_.
             double temp = pos[i] + 3.0 * size_[i];
             retVec[i] = temp - int(temp / size_[i]) * size_[i];
+#ifndef NDEBUG
+            if((retVec[i] >= size_[i]) || (retVec[i] < 0.0)){
+                printf("%.16e, %.16e: %.16e, %.16e\n", retVec[i], size_[i], retVec[i] - size_[i], retVec[i] + size_[i]);
+            }
+#endif
             assert((retVec[i] < size_[i]) && (retVec[i] >= 0.0));
         }
 

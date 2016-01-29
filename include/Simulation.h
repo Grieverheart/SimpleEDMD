@@ -25,6 +25,7 @@ public:
     void reset_statistics(void);
     double get_average_stress(void)const;
     double get_average_kinetic_energy(void)const;
+    int get_num_collisions(void)const;
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;
@@ -38,6 +39,7 @@ private:
     double prev_time_;
     double statistics_start_time_;
     double closest_distance_tol_;
+    double max_collision_time_;
 
     double av_momentum_transfer_;
 
@@ -45,6 +47,10 @@ private:
     double av_kinetic_delta_;
     double base_kinetic_energy_;
     double kinetic_delta_;
+
+    double max_inflight_time_;
+
+    int n_collision_events_;
 
     std::vector<uint32_t> n_collisions_;
 

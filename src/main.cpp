@@ -78,6 +78,7 @@ int main(int argc, char *argv[]){
         double kT = 2.0 * sim->get_average_kinetic_energy() / (3.0 * config.particles_.size());
         double pressure = (config.particles_.size() - sim->get_average_stress() / (3.0 * kT)) / volume;
         printf("%e: %f\t%f\n", time, pressure, kT);
+        sim->reset_statistics();
 
 #ifndef NDEBUG
         //Check for overlaps
