@@ -101,7 +101,7 @@ namespace{
             clam::Vec3d tangent_a = clam::cross(point_on_a, normal);
             clam::Vec3d tangent_b = clam::cross(point_on_b, normal);
 
-            double momentum_delta = 
+            double momentum_delta =
                 2.0 * clam::dot(normal, rel_vel) /
                 (2.0 + tangent_a.length2() + tangent_b.length2());
 
@@ -209,6 +209,8 @@ public:
 
                 if(max_vel < 0.0) break;
 
+                //TODO: We can change the bound to 2 * tol and additionally check
+                //if we are approaching (distance < prev_distance).
                 if(distance < sim_.closest_distance_tol_){
                     int iter = 0;
                     while(shortest_dist.length() < sim_.closest_distance_tol_){
@@ -220,7 +222,7 @@ public:
                         partA.time = time;
                         shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
                         //NOTE: This should alsmost never happen.
-                        if(iter++ > 10) return ParticleEvent::None();
+                        if(iter++ > 100) return ParticleEvent::None();
                     }
 
                     return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);

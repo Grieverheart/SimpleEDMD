@@ -5,50 +5,43 @@
 #include <cassert>
 #include <cstdio>
 
+//Assume y > 0.0
+inline double wrap(double x, double y){
+    if(x >= 0.0){
+        if(x < y) return x;
+        else if(x < 2.0 * y) return x - y;
+    }
+    else if(x >= -y) return x + y;
+
+    // general case
+    double m = x - y * int(x / y);
+    // handle boundary cases resulting from floating-point limited accuracy:
+    if(m >= y) return 0.0;
+    if(m < 0.0){
+        if(y == y + m) return 0.0;
+        else return y + m;
+    }
+
+    return m;
+}
+
 class RectangularPBC{
 public:
     RectangularPBC(void){}
 
     RectangularPBC(const clam::Vec3d& size):
-        size_(size), isize_(1.0 / size_)
+        size_(size)
     {}
 
-    //TODO: Check how accuracy affects simulation.
-
-    //NOTE: Note sure if this always works.
-    //Assumes -3.5B < Dx < Inf
     clam::Vec3d minImage(const clam::Vec3d& vec)const{
         clam::Vec3d retVec;
-        for(int i = 0; i < 3; ++i){
-            retVec[i] = vec[i] + (3 - int(vec[i] * isize_[i] + 3.5)) * size_[i];
-#ifndef NDEBUG
-            if((retVec[i] - 0.5 * size_[i] >= 1.0e-14) || (retVec[i] + 0.5 * size_[i] <= -1.0e-14)){
-                printf("%.16e, %.16e: %.16e, %.16e\n", retVec[i], 0.5 * size_[i], retVec[i] - 0.5 * size_[i], retVec[i] + 0.5 * size_[i]);
-            }
-#endif
-            assert((retVec[i] - 0.5 * size_[i] < 1.0e-14) && (retVec[i] + 0.5 * size_[i] > -1.0e-14));
-        }
-    
+        for(int i = 0; i < 3; ++i) retVec[i] = wrap(vec[i] + 0.5 * size_[i], size_[i]) - 0.5 * size_[i];
         return retVec;
     }
 
-    //Assumes -3.0B < pos < Inf
     clam::Vec3d apply(const clam::Vec3d& pos)const{
         clam::Vec3d retVec;
-        for(int i = 0; i < 3; ++i){
-            //NOTE: It is important to do the computations like this, for precision
-            //reasons. If we were to elliminate terms, we would not get accurate results.
-            //The same goes for using division instead of multiplying by isize_.
-            double temp = pos[i] + 3.0 * size_[i];
-            retVec[i] = temp - int(temp / size_[i]) * size_[i];
-#ifndef NDEBUG
-            if((retVec[i] >= size_[i]) || (retVec[i] < 0.0)){
-                printf("%.16e, %.16e: %.16e, %.16e\n", retVec[i], size_[i], retVec[i] - size_[i], retVec[i] + size_[i]);
-            }
-#endif
-            assert((retVec[i] < size_[i]) && (retVec[i] >= 0.0));
-        }
-
+        for(int i = 0; i < 3; ++i) retVec[i] = wrap(pos[i], size_[i]);
         return retVec;
     }
 
@@ -57,13 +50,11 @@ public:
     }
 
     void setSize(const clam::Vec3d& size){
-        size_  = size;
-        isize_ = 1.0 / size_;
+        size_ = size;
     }
 
 private:
     clam::Vec3d size_;
-    clam::Vec3d isize_;
 };
 
 #endif
