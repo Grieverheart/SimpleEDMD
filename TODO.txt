@@ -5,10 +5,10 @@
 --Implement collision resolution.
 --Implement xml io.
 --Add simulation statics reset function.
-Use relative time to improve numerical precision.
 Add simulation serialization.
+Try implementing TOI using SAT for polyhedra, and compare performance.
+Use relative time to improve numerical precision.
 Improve simulation callback (PeriodicCallback).
-Try implementing TOI using SAT, and compare performance.
 Add more shapes.
 Implement Complex shapes.
 Make into library?
