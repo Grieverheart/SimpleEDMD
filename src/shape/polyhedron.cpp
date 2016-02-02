@@ -129,4 +129,35 @@ namespace shape{
         delete[] source_;
     }
 
+    void Polyhedron::serialize(Archive& ar)const{
+        size_t source_len = (source_)? strlen(source_): 0;
+        ar.write(&source_len, sizeof(source_len));
+        ar.write(source_, source_len);
+
+        ar.write(&in_radius_, sizeof(in_radius_));
+        ar.write(&out_radius_, sizeof(out_radius_));
+        ar.write(&volume_, sizeof(volume_));
+
+        auto n_vertices = vertices_.size();
+        ar.write(&n_vertices, sizeof(n_vertices));
+
+        for(auto vertex: vertices_) vertex.serialize(ar);
+
+        auto n_nbs = vert_neighbors.size();
+        ar.write(&n_nbs, sizeof(n_nbs));
+        for(auto vertex_neighbors: vert_neighbors){
+            n_nbs = vertex_neighbors.size();
+            ar.write(&n_nbs, sizeof(n_nbs));
+            for(auto nbid: vertex_neighbors) ar.write(&nbid, sizeof(nbid));
+        }
+
+        auto n_faces = faces_.size();
+        ar.write(&n_faces, sizeof(n_faces));
+        for(auto face: faces_){
+            auto n_vertices = face.size();
+            ar.write(&n_vertices, sizeof(n_vertices));
+            for(auto vid: face) ar.write(&vid, sizeof(vid));
+        }
+    }
+
 }

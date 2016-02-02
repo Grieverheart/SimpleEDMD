@@ -1,6 +1,28 @@
 #include "configuration.h"
 #include "shape/variant.h"
 
+class SerializationVisitor: public boost::static_visitor<>{
+public:
+    SerializationVisitor(Archive& ar):
+        ar_(ar)
+    {}
+
+    void operator()(const shape::Polyhedron& poly)const{
+        int shape_type = shape::POLYHEDRON;
+        ar_.write(&shape_type, sizeof(shape_type));
+        poly.serialize(ar_);
+    }
+
+    void operator()(const shape::Sphere& sph)const{
+        int shape_type = shape::SPHERE;
+        ar_.write(&shape_type, sizeof(shape_type));
+        sph.serialize(ar_);
+    }
+
+private:
+    Archive& ar_;
+};
+
 Configuration::~Configuration(void){
     for(auto shape: shapes_) delete shape;
 }
@@ -20,4 +42,10 @@ Configuration::Configuration(const Configuration& other):
 {
     shapes_.resize(other.shapes_.size());
     for(size_t i = 0; i < other.shapes_.size(); ++i) shapes_[i] = new shape::Variant(*other.shapes_[i]);
+}
+
+void Configuration::serialize(Archive& ar)const{
+    for(auto particle: particles_) particle.serialize(ar);
+    for(auto shape: shapes_) boost::apply_visitor(SerializationVisitor(ar), *shape);
+    pbc_.serialize(ar);
 }

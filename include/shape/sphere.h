@@ -2,6 +2,7 @@
 #define EDMD_SHAPE_SPHERE_H
 
 #include "convex.h"
+#include "serialization/archive.h"
 
 namespace shape{
 
@@ -17,6 +18,9 @@ namespace shape{
 
         double volume(void)const{
             return (4.0 * M_PI / 3.0);
+        }
+
+        void serialize(Archive& ar)const{
         }
     };
 

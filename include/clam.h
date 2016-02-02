@@ -3,6 +3,7 @@
 
 #ifdef __cplusplus
 
+#include "serialization/archive.h"
 #include <cmath>
 
 namespace clam{
@@ -158,6 +159,10 @@ namespace clam{
 
         constexpr T length(void)const{
             return sqrt(length2());
+        }
+
+        void serialize(Archive& ar)const{
+            ar.write(data_, 3 * sizeof(T));
         }
 	};
 
@@ -319,6 +324,11 @@ namespace clam{
                 angle = 0.0;
                 axis = Vec3<T>(0.0, 1.0, 0.0);
             }
+        }
+
+        void serialize(Archive& ar)const{
+            v_.serialize(ar);
+            ar.write(&w_, sizeof(T));
         }
     };
 

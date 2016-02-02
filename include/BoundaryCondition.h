@@ -2,6 +2,7 @@
 #define __BOUNDARY_CONDITION_H
 
 #include "clam.h"
+#include "serialization/archive.h"
 #include <cassert>
 #include <cstdio>
 
@@ -51,6 +52,10 @@ public:
 
     void setSize(const clam::Vec3d& size){
         size_ = size;
+    }
+
+    void serialize(Archive& ar)const{
+        size_.serialize(ar);
     }
 
 private:

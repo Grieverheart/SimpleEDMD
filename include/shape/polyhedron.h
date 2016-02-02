@@ -2,6 +2,7 @@
 #define EDMD_SHAPE_POLYHEDRON_H
 
 #include "convex.h"
+#include "serialization/archive.h"
 #include <cstddef>
 #include <vector>
 #include <algorithm>
@@ -45,6 +46,8 @@ namespace shape{
         const char* get_source(void)const{
             return source_;
         }
+
+        void serialize(Archive& ar)const;
 
         clam::Vec3d support(const clam::Vec3d&)const;
         double max_vert_dist2(const clam::Vec3d& pos, const clam::Quatd& rot)const;

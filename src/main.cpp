@@ -6,6 +6,7 @@
 #include "obj_loader.h"
 #include "io/config_xml.h"
 #include "overlap/overlap.h"
+#include "serialization/archive.h"
 
 inline void stream_position(Particle& particle, double time){
     particle.pos += particle.vel * (time - particle.time);
@@ -46,6 +47,13 @@ int main(int argc, char *argv[]){
     {
         Configuration config;
         xml_load_config(argv[1], config);
+
+        //Archive ar;
+        //config.serialize(ar);
+        //FILE* fp = fopen("Data/config.core", "wb");
+        //fwrite(ar.data(), 1, ar.size(), fp);
+        //fclose(fp);
+
         //Scale box and positions for reaching target_pf
         {
             double target_pf = atof(argv[2]);
