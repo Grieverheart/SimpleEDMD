@@ -559,3 +559,26 @@ double Simulation::get_average_kinetic_energy(void)const{
     return base_kinetic_energy_ + av_kinetic_delta_ / (time_ - statistics_start_time_);
 }
 
+void Simulation::serialize(Archive& ar)const{
+    ar.write(&time_, sizeof(time_));
+    ar.write(&prev_time_, sizeof(prev_time_));
+    ar.write(&statistics_start_time_, sizeof(statistics_start_time_));
+    ar.write(&closest_distance_tol_, sizeof(closest_distance_tol_));
+    ar.write(&max_collision_time_, sizeof(max_collision_time_));
+    ar.write(&av_momentum_transfer_, sizeof(av_momentum_transfer_));
+    ar.write(&av_kinetic_delta_, sizeof(av_kinetic_delta_));
+    ar.write(&base_kinetic_energy_, sizeof(base_kinetic_energy_));
+    ar.write(&kinetic_delta_, sizeof(kinetic_delta_));
+    ar.write(&max_inflight_time_, sizeof(max_inflight_time_));
+    ar.write(&n_collision_events_, sizeof(n_collision_events_));
+
+    //TODO: Perhaps write vectors in one go.
+    auto n_collisions_size = n_collisions_.size();
+    ar.write(&n_collisions_size, sizeof(n_collisions_size));
+    ar.write(n_collisions_.data(), n_collisions_size * sizeof(decltype(n_collisions_)::value_type));
+
+    config_.serialize(ar);
+    event_mgr_.serialize(ar);
+    //cll_.serialize(ar);
+}
+

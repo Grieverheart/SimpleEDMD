@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <functional>
+#include "serialization/archive.h"
 
 //FUTURE: Add iterators for iterating over tree elements
 
@@ -22,6 +23,12 @@ public:
     BinaryHeap(BinaryHeap&& other):
         data_(std::move(other.data_))
     {}
+
+    void serialize(Archive& ar)const{
+        auto data_size = data_.size();
+        ar.write(&data_size, sizeof(data_size));
+        ar.write(data_.data(), data_size * sizeof(T));
+    }
 
     void clear(void){
         data_.clear();

@@ -3,6 +3,7 @@
 
 #include "Event.h"
 #include "BinaryHeap.h"
+#include "serialization/archive.h"
 #include <vector>
 #include <cstddef>
 
@@ -14,6 +15,8 @@ class EventManager{
 public:
      EventManager(void); //Consider making these template parameters
     ~EventManager(void);
+
+    void serialize(Archive&)const;
 
     void resize(size_t nPart);
     void init(void);

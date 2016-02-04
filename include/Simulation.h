@@ -11,12 +11,15 @@
 #include "EventManager.h"
 #include "configuration.h"
 #include "shape/variant_fwd.h"
+#include "serialization/archive.h"
 
 class Simulation{
 public:
     Simulation(const Configuration& config);
 
     void run(double end_time, PeriodicCallback& output_condition);
+
+    void serialize(Archive&)const;
 
     const std::vector<Particle>& get_particles(void)const;
     const RectangularPBC& get_pbc(void)const;

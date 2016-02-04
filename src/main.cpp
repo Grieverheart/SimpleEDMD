@@ -48,12 +48,6 @@ int main(int argc, char *argv[]){
         Configuration config;
         xml_load_config(argv[1], config);
 
-        //Archive ar;
-        //config.serialize(ar);
-        //FILE* fp = fopen("Data/config.core", "wb");
-        //fwrite(ar.data(), 1, ar.size(), fp);
-        //fclose(fp);
-
         //Scale box and positions for reaching target_pf
         {
             double target_pf = atof(argv[2]);
@@ -106,6 +100,12 @@ int main(int argc, char *argv[]){
         assert(overlaps == false);
 #endif
     });
+
+    Archive ar;
+    sim->serialize(ar);
+    FILE* fp = fopen("Data/config.core", "wb");
+    fwrite(ar.data(), 1, ar.size(), fp);
+    fclose(fp);
 
     sim->run(1000.0, output);
 
