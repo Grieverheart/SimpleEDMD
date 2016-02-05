@@ -572,13 +572,12 @@ void Simulation::serialize(Archive& ar)const{
     ar.write(&max_inflight_time_, sizeof(max_inflight_time_));
     ar.write(&n_collision_events_, sizeof(n_collision_events_));
 
-    //TODO: Perhaps write vectors in one go.
     auto n_collisions_size = n_collisions_.size();
     ar.write(&n_collisions_size, sizeof(n_collisions_size));
     ar.write(n_collisions_.data(), n_collisions_size * sizeof(decltype(n_collisions_)::value_type));
 
     config_.serialize(ar);
     event_mgr_.serialize(ar);
-    //cll_.serialize(ar);
+    cll_.serialize(ar);
 }
 

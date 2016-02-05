@@ -2,6 +2,7 @@
 #define __CELL_LIST_H
 
 #include "clam.h"
+#include "serialization/archive.h"
 
 #define CLL_EMPTY -1
 
@@ -10,6 +11,8 @@ class CellList{
 public:
     CellList(void);
     ~CellList(void);
+
+    void serialize(Archive&)const;
 
     void init(int nPart, const clam::Vec3d& boxSize, double minCellSize);
     int add(int pid, const clam::Vec3d& pos);
