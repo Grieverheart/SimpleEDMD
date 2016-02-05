@@ -20,9 +20,10 @@ namespace shape{
             return (4.0 * M_PI / 3.0);
         }
 
-        void serialize(Archive& ar)const{
-        }
     };
+
+    inline void serialize(Archive& ar, const Sphere& sph){
+    }
 
 }
 

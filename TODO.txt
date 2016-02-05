@@ -5,7 +5,8 @@
 --Implement collision resolution.
 --Implement xml io.
 --Add simulation statics reset function.
-Add simulation serialization.
+--Add simulation serialization.
+Add simulation deserialization.
 Try implementing TOI using SAT for polyhedra, and compare performance.
 Use relative time to improve numerical precision.
 Improve simulation callback (PeriodicCallback).

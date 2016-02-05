@@ -12,7 +12,7 @@ public:
     CellList(void);
     ~CellList(void);
 
-    void serialize(Archive&)const;
+    friend void serialize(Archive&, const CellList&);
 
     void init(int nPart, const clam::Vec3d& boxSize, double minCellSize);
     int add(int pid, const clam::Vec3d& pos);

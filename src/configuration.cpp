@@ -10,13 +10,13 @@ public:
     void operator()(const shape::Polyhedron& poly)const{
         int shape_type = shape::POLYHEDRON;
         ar_.write(&shape_type, sizeof(shape_type));
-        poly.serialize(ar_);
+        serialize(ar_, poly);
     }
 
     void operator()(const shape::Sphere& sph)const{
         int shape_type = shape::SPHERE;
         ar_.write(&shape_type, sizeof(shape_type));
-        sph.serialize(ar_);
+        serialize(ar_, sph);
     }
 
 private:
@@ -44,8 +44,9 @@ Configuration::Configuration(const Configuration& other):
     for(size_t i = 0; i < other.shapes_.size(); ++i) shapes_[i] = new shape::Variant(*other.shapes_[i]);
 }
 
-void Configuration::serialize(Archive& ar)const{
-    for(auto particle: particles_) particle.serialize(ar);
-    for(auto shape: shapes_) boost::apply_visitor(SerializationVisitor(ar), *shape);
-    pbc_.serialize(ar);
+void serialize(Archive& ar, const Configuration& config){
+    serialize(ar, config.particles_);
+    serialize(ar, config.shapes_.size());
+    for(auto shape: config.shapes_) boost::apply_visitor(SerializationVisitor(ar), *shape);
+    serialize(ar, config.pbc_);
 }

@@ -14,11 +14,11 @@ struct Configuration{
 
     ~Configuration(void);
 
-    void serialize(Archive&)const;
-
     std::vector<Particle> particles_;
     std::vector<shape::Variant*> shapes_;
     RectangularPBC pbc_;
 };
+
+void serialize(Archive&, const Configuration&);
 
 #endif

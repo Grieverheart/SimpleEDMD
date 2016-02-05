@@ -8,6 +8,12 @@
 //FUTURE: Add iterators for iterating over tree elements
 
 template< class T, class Compare = std::less<T> >
+class BinaryHeap;
+
+template<typename T>
+void serialize(Archive&, const BinaryHeap<T>&);
+
+template< class T, class Compare >
 class BinaryHeap{
 public:
     BinaryHeap(void){
@@ -24,11 +30,7 @@ public:
         data_(std::move(other.data_))
     {}
 
-    void serialize(Archive& ar)const{
-        auto data_size = data_.size();
-        ar.write(&data_size, sizeof(data_size));
-        ar.write(data_.data(), data_size * sizeof(T));
-    }
+    friend void serialize<T>(Archive& ar, const BinaryHeap<T>&);
 
     void clear(void){
         data_.clear();
@@ -85,6 +87,11 @@ private:
 
 template<class T, class Compare>
 Compare BinaryHeap<T, Compare>::comp_ = Compare();
+
+template<typename T>
+void serialize(Archive& ar, const BinaryHeap<T>& bh){
+    serialize(ar, bh.data_);
+}
 
 
 #endif

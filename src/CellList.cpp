@@ -24,17 +24,17 @@ CellList::~CellList(void){
     delete[] p_cell_ids_;
 }
 
-void CellList::serialize(Archive& ar)const{
-    ar.write(&n_part_, sizeof(int));
-    ar.write(n_cells_, 3 * sizeof(*n_cells_));
-    ar.write(&n_cells_tot_, sizeof(n_cells_tot_));
-    ar.write(cell_, n_cells_tot_ * sizeof(*cell_));
-    ar.write(linked_list_, n_part_ * sizeof(*linked_list_));
-    ar.write(p_cell_ids_, n_part_ * sizeof(*p_cell_ids_));
-    ar.write(cell_neighbours_, 27 * n_cells_tot_ * sizeof(*cell_neighbours_));
-    ar.write(cell_dir_neighbours_, 54 * n_cells_tot_ * sizeof(*cell_dir_neighbours_));
-    ar.write(cell_vol_neighbours_, 14 * n_cells_tot_ * sizeof(*cell_vol_neighbours_));
-    cell_size_.serialize(ar);
+void serialize(Archive& ar, const CellList& cll){
+    serialize(ar, cll.n_part_);
+    serialize(ar, cll.n_cells_, 3);
+    serialize(ar, cll.n_cells_tot_);
+    serialize(ar, cll.cell_, cll.n_cells_tot_);
+    serialize(ar, cll.linked_list_, cll.n_part_);
+    serialize(ar, cll.p_cell_ids_, cll.n_part_);
+    serialize(ar, cll.cell_neighbours_, 27 * cll.n_cells_tot_);
+    serialize(ar, cll.cell_dir_neighbours_, 54 * cll.n_cells_tot_);
+    serialize(ar, cll.cell_vol_neighbours_, 14 * cll.n_cells_tot_);
+    serialize(ar, cll.cell_size_);
 }
 
 void CellList::init(int nPart, const clam::Vec3d& box_bounds, double minCellSize){

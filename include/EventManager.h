@@ -16,7 +16,7 @@ public:
      EventManager(void); //Consider making these template parameters
     ~EventManager(void);
 
-    void serialize(Archive&)const;
+    friend void serialize(Archive&, const EventManager&);
 
     void resize(size_t nPart);
     void init(void);

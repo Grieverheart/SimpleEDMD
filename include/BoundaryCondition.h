@@ -54,10 +54,6 @@ public:
         size_ = size;
     }
 
-    void serialize(Archive& ar)const{
-        size_.serialize(ar);
-    }
-
 private:
     clam::Vec3d size_;
 };

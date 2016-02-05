@@ -19,8 +19,6 @@ public:
 
     void run(double end_time, PeriodicCallback& output_condition);
 
-    void serialize(Archive&)const;
-
     const std::vector<Particle>& get_particles(void)const;
     const RectangularPBC& get_pbc(void)const;
     const Configuration& get_configuration(void)const;
@@ -29,6 +27,8 @@ public:
     double get_average_stress(void)const;
     double get_average_kinetic_energy(void)const;
     int get_num_collisions(void)const;
+
+    friend void serialize(Archive&, const Simulation&);
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;

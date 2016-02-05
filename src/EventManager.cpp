@@ -25,33 +25,17 @@ EventManager::~EventManager(void){
 
 //TODO: Perhaps we don't have to save everything, we could save just enough
 //and use insertInEventQ() for all particles.
-void EventManager::serialize(Archive& ar)const{
-    auto events_size = events_.size();
-    ar.write(&events_size, sizeof(events_size));
-    for(const auto& pel: events_) pel.serialize(ar);
-
-    auto event_items_size = eventItems_.size();
-    ar.write(&event_items_size, sizeof(event_items_size));
-    ar.write(eventItems_.data(), event_items_size * sizeof(decltype(eventItems_)::value_type));
-
-    auto llQueue_size = llQueue_.size();
-    ar.write(&llQueue_size, sizeof(llQueue_size));
-    ar.write(llQueue_.data(), llQueue_size * sizeof(decltype(llQueue_)::value_type));
-
-    ar.write(&currentIndex_, sizeof(currentIndex_));
-    ar.write(&baseIndex_, sizeof(baseIndex_));
-    ar.write(&llSize_, sizeof(llSize_));
-    ar.write(&scaleFactor_, sizeof(scaleFactor_));
-
-    auto nodes_size = nodes_.size();
-    ar.write(&nodes_size, sizeof(nodes_size));
-    ar.write(nodes_.data(), nodes_size * sizeof(decltype(nodes_)::value_type));
-
-    auto leafs_size = leafs_.size();
-    ar.write(&leafs_size, sizeof(leafs_size));
-    ar.write(leafs_.data(), leafs_size * sizeof(decltype(leafs_)::value_type));
-
-    ar.write(&nCBTEvents_, sizeof(nCBTEvents_));
+void serialize(Archive& ar, const EventManager& evt_mgr){
+    serialize(ar, evt_mgr.events_);
+    serialize(ar, evt_mgr.eventItems_);
+    serialize(ar, evt_mgr.llQueue_);
+    serialize(ar, evt_mgr.currentIndex_);
+    serialize(ar, evt_mgr.baseIndex_);
+    serialize(ar, evt_mgr.llSize_);
+    serialize(ar, evt_mgr.scaleFactor_);
+    serialize(ar, evt_mgr.nodes_);
+    serialize(ar, evt_mgr.leafs_);
+    serialize(ar, evt_mgr.nCBTEvents_);
 }
 
 void EventManager::resize(size_t nPart){

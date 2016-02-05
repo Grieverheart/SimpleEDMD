@@ -161,9 +161,6 @@ namespace clam{
             return sqrt(length2());
         }
 
-        void serialize(Archive& ar)const{
-            ar.write(data_, 3 * sizeof(T));
-        }
 	};
 
     template<typename T>
@@ -221,6 +218,14 @@ namespace clam{
 
         constexpr Quat<T> conj(void)const{
             return Quat<T>(-v_, w_);
+        }
+
+        constexpr Vec3<T> imag(void)const{
+            return v_;
+        }
+
+        constexpr T real(void)const{
+            return w_;
         }
 
 		constexpr T operator[](unsigned int i)const{
@@ -324,11 +329,6 @@ namespace clam{
                 angle = 0.0;
                 axis = Vec3<T>(0.0, 1.0, 0.0);
             }
-        }
-
-        void serialize(Archive& ar)const{
-            v_.serialize(ar);
-            ar.write(&w_, sizeof(T));
         }
     };
 

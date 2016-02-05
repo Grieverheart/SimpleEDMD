@@ -9,16 +9,6 @@ struct Particle{
         time(0.0)
     {}
 
-    void serialize(Archive& ar){
-        ar.write(&time, sizeof(double));
-        ar.write(&size, sizeof(double));
-        pos.serialize(ar);
-        rot.serialize(ar);
-        vel.serialize(ar);
-        ang_vel.serialize(ar);
-        ar.write(&shape_id, sizeof(double));
-    }
-
     double time;
     double size;
     clam::Vec3d pos;

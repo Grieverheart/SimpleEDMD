@@ -102,7 +102,7 @@ int main(int argc, char *argv[]){
     });
 
     Archive ar;
-    sim->serialize(ar);
+    serialize(ar, *sim);
     FILE* fp = fopen("Data/config.core", "wb");
     fwrite(ar.data(), 1, ar.size(), fp);
     fclose(fp);

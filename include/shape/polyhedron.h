@@ -18,6 +18,8 @@ namespace shape{
         explicit Polyhedron(const std::vector<clam::Vec3d>& vertices, const std::vector<std::vector<unsigned int>>& faces, const char* source = nullptr);
         Polyhedron(const Polyhedron&);
         ~Polyhedron(void);
+
+        friend void serialize(Archive& ar, const Polyhedron&);
         //TODO: Add void set_source(const char*) and const char* get_source(void) functions
         //so that we can handle the storage of an optional filename from which the shape
         //was loaded from.
@@ -46,8 +48,6 @@ namespace shape{
         const char* get_source(void)const{
             return source_;
         }
-
-        void serialize(Archive& ar)const;
 
         clam::Vec3d support(const clam::Vec3d&)const;
         double max_vert_dist2(const clam::Vec3d& pos, const clam::Quatd& rot)const;
