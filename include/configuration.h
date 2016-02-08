@@ -20,5 +20,6 @@ struct Configuration{
 };
 
 void serialize(Archive&, const Configuration&);
+void deserialize(Archive&, Configuration*);
 
 #endif

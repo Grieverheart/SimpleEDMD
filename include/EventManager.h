@@ -17,6 +17,7 @@ public:
     ~EventManager(void);
 
     friend void serialize(Archive&, const EventManager&);
+    friend void deserialize(Archive&, EventManager*);
 
     void resize(size_t nPart);
     void init(void);

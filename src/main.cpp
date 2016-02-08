@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
 
     PeriodicCallback output(0.01);
     output.setNextFunction([](double time){
-        return time + 1.0;
+        return time + 0.1;
     });
     output.setCallback([sim](double time){
         static int nFiles = 0;
@@ -101,13 +101,35 @@ int main(int argc, char *argv[]){
 #endif
     });
 
-    Archive ar;
-    serialize(ar, *sim);
-    FILE* fp = fopen("Data/config.core", "wb");
-    fwrite(ar.data(), 1, ar.size(), fp);
-    fclose(fp);
 
-    sim->run(1000.0, output);
+    //sim->run(0.1, output);
+
+    //{
+    //    Archive ar;
+    //    serialize(ar, *sim);
+    //    FILE* fp = fopen("Data/config.core", "wb");
+    //    fwrite(ar.data(), 1, ar.size(), fp);
+    //    fclose(fp);
+    //}
+
+    //{
+    //    FILE* fp = fopen("Data/config.core", "rb");
+    //    fseek(fp, 0l, SEEK_END);
+    //    size_t file_size = ftell(fp);
+    //    fseek(fp, 0l, SEEK_SET);
+    //    char* data = reinterpret_cast<char*>(malloc(file_size));
+    //    fread(data, file_size, 1, fp);
+    //    fclose(fp);
+
+    //    Archive ar(data, file_size);
+    //    deserialize(ar, sim);
+
+    //    free(data);
+    //}
+
+    sim->run(0.21, output);
+
+    delete sim;
 
     return 0;
 }

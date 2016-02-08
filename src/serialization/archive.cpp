@@ -1,13 +1,13 @@
 #include "serialization/archive.h"
 #include <cstdlib>
 #include <cstring>
-#include <cstdio>
 
 Archive::Archive(void):
     data_(nullptr),
     position_(0), size_(0)
 {}
 
+//TODO: Perhaps implement some way to avoid copying.
 Archive::Archive(const void* data, size_t size):
     position_(0), size_(size)
 {

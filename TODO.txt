@@ -6,10 +6,12 @@
 --Implement xml io.
 --Add simulation statics reset function.
 --Add simulation serialization.
-Add simulation deserialization.
+--Add simulation deserialization.
+Improve simulation callback (PeriodicCallback).
+Find a boost.variant replacement or roll your own (move semantics would be nice).
+Consider using Cereal for (de)serialization.
 Try implementing TOI using SAT for polyhedra, and compare performance.
 Use relative time to improve numerical precision.
-Improve simulation callback (PeriodicCallback).
 Add more shapes.
 Implement Complex shapes.
 Make into library?

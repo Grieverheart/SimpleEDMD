@@ -1,4 +1,6 @@
 #include "EventManager.h"
+#include "serialization/common.h"
+#include "serialization/vector.h"
 #include <cstdio>
 #include <limits>
 #include <cassert>
@@ -36,6 +38,19 @@ void serialize(Archive& ar, const EventManager& evt_mgr){
     serialize(ar, evt_mgr.nodes_);
     serialize(ar, evt_mgr.leafs_);
     serialize(ar, evt_mgr.nCBTEvents_);
+}
+
+void deserialize(Archive& ar, EventManager* evt_mgr){
+    deserialize(ar, &evt_mgr->events_);
+    deserialize(ar, &evt_mgr->eventItems_);
+    deserialize(ar, &evt_mgr->llQueue_);
+    deserialize(ar, &evt_mgr->currentIndex_);
+    deserialize(ar, &evt_mgr->baseIndex_);
+    deserialize(ar, &evt_mgr->llSize_);
+    deserialize(ar, &evt_mgr->scaleFactor_);
+    deserialize(ar, &evt_mgr->nodes_);
+    deserialize(ar, &evt_mgr->leafs_);
+    deserialize(ar, &evt_mgr->nCBTEvents_);
 }
 
 void EventManager::resize(size_t nPart){

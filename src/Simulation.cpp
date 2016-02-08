@@ -5,6 +5,8 @@
 #include "overlap/ray_casting.h"
 #include "overlap/gjk.h"
 #include "overlap/overlap.h"
+#include "serialization/common.h"
+#include "serialization/vector.h"
 
 static void print_particle(const Particle& p){
     printf("pos: glm::vec3(%e, %e, %e)\n", p.pos[0], p.pos[1], p.pos[2]);
@@ -419,6 +421,9 @@ const RectangularPBC& Simulation::get_pbc(void)const{
 const Configuration& Simulation::get_configuration(void)const{
     return config_;
 }
+Simulation::Simulation(void):
+    pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
+{}
 
 //TODO: Perhaps add exceptions to constructor
 Simulation::Simulation(const Configuration& config):
@@ -427,7 +432,7 @@ Simulation::Simulation(const Configuration& config):
     closest_distance_tol_(1.0e-8), //@note: increase tolerance to increase performance.
     max_collision_time_(5.0),
     av_momentum_transfer_(0.0),
-    av_kinetic_delta_(0.0), kinetic_delta_(0.0),
+    av_kinetic_delta_(0.0), base_kinetic_energy_(0.0), kinetic_delta_(0.0),
     max_inflight_time_(0.0),
     n_collision_events_(0),
     config_(config),
@@ -577,3 +582,20 @@ void serialize(Archive& ar, const Simulation& sim){
     serialize(ar, sim.cll_);
 }
 
+void deserialize(Archive& ar, Simulation* sim){
+    deserialize(ar, &sim->time_);
+    deserialize(ar, &sim->prev_time_);
+    deserialize(ar, &sim->statistics_start_time_);
+    deserialize(ar, &sim->closest_distance_tol_);
+    deserialize(ar, &sim->max_collision_time_);
+    deserialize(ar, &sim->av_momentum_transfer_);
+    deserialize(ar, &sim->av_kinetic_delta_);
+    deserialize(ar, &sim->base_kinetic_energy_);
+    deserialize(ar, &sim->kinetic_delta_);
+    deserialize(ar, &sim->max_inflight_time_);
+    deserialize(ar, &sim->n_collision_events_);
+    deserialize(ar, &sim->n_collisions_);
+    deserialize(ar, &sim->config_);
+    deserialize(ar, &sim->event_mgr_);
+    deserialize(ar, &sim->cll_);
+}

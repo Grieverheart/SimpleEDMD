@@ -25,6 +25,8 @@ namespace shape{
     inline void serialize(Archive& ar, const Sphere& sph){
     }
 
+    inline void deserialize(Archive& ar, Sphere* sph){
+    }
 }
 
 #endif

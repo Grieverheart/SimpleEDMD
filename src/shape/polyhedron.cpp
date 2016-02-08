@@ -1,5 +1,7 @@
 #include "shape/polyhedron.h"
 #include <cstring>
+#include "serialization/common.h"
+#include "serialization/vector.h"
 
 namespace shape{
 
@@ -141,6 +143,20 @@ namespace shape{
         serialize(ar, poly.vertices_);
         serialize(ar, poly.vert_neighbors);
         serialize(ar, poly.faces_);
+    }
+
+    void deserialize(Archive& ar, Polyhedron* poly){
+        size_t source_len = 0;
+        deserialize(ar, &source_len);
+        if(source_len > 0) deserialize(ar, &poly->source_, source_len);
+
+        deserialize(ar, &poly->in_radius_);
+        deserialize(ar, &poly->out_radius_);
+        deserialize(ar, &poly->volume_);
+
+        deserialize(ar, &poly->vertices_);
+        deserialize(ar, &poly->vert_neighbors);
+        deserialize(ar, &poly->faces_);
     }
 
 }

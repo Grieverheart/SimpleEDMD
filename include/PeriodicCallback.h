@@ -35,6 +35,10 @@ public:
         return time_;
     }
 
+    void reset(void){
+        time_ = 0.11;
+    }
+
 private:
     double       time_;
     time_functor timeNext_;

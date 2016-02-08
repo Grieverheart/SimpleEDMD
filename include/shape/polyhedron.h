@@ -15,11 +15,15 @@ namespace shape{
     //TODO: Get rid of unsigned int. Better use something like uint_fast32_t
     class Polyhedron: public Convex{
     public:
+        Polyhedron(void):
+            source_(nullptr)
+        {}
         explicit Polyhedron(const std::vector<clam::Vec3d>& vertices, const std::vector<std::vector<unsigned int>>& faces, const char* source = nullptr);
         Polyhedron(const Polyhedron&);
         ~Polyhedron(void);
 
         friend void serialize(Archive& ar, const Polyhedron&);
+        friend void deserialize(Archive& ar, Polyhedron*);
         //TODO: Add void set_source(const char*) and const char* get_source(void) functions
         //so that we can handle the storage of an optional filename from which the shape
         //was loaded from.

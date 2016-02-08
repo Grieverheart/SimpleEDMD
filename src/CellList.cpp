@@ -1,4 +1,5 @@
 #include "CellList.h"
+#include "serialization/common.h"
 
 //NOTE: At some point we should make the box a 3x3 matrix
 template<class T> 
@@ -37,6 +38,27 @@ void serialize(Archive& ar, const CellList& cll){
     serialize(ar, cll.cell_size_);
 }
 
+void deserialize(Archive& ar, CellList* cll){
+    deserialize(ar, &cll->n_part_);
+    deserialize(ar, cll->n_cells_, 3);
+    deserialize(ar, &cll->n_cells_tot_);
+
+    cll->cell_                = new int[cll->n_cells_tot_];
+    cll->linked_list_         = new int[cll->n_part_];
+    cll->p_cell_ids_          = new int[cll->n_part_];
+    cll->cell_neighbours_     = new int[27 * cll->n_cells_tot_];
+    cll->cell_dir_neighbours_ = new int[54 * cll->n_cells_tot_];
+    cll->cell_vol_neighbours_ = new int[14 * cll->n_cells_tot_];
+
+    deserialize(ar, cll->cell_, cll->n_cells_tot_);
+    deserialize(ar, cll->linked_list_, cll->n_part_);
+    deserialize(ar, cll->p_cell_ids_, cll->n_part_);
+    deserialize(ar, cll->cell_neighbours_, 27 * cll->n_cells_tot_);
+    deserialize(ar, cll->cell_dir_neighbours_, 54 * cll->n_cells_tot_);
+    deserialize(ar, cll->cell_vol_neighbours_, 14 * cll->n_cells_tot_);
+    deserialize(ar, &cll->cell_size_);
+}
+
 void CellList::init(int nPart, const clam::Vec3d& box_bounds, double minCellSize){
     n_part_ = nPart;
 
@@ -49,10 +71,10 @@ void CellList::init(int nPart, const clam::Vec3d& box_bounds, double minCellSize
         n_cells_tot_ *= n_cells_[i];
     }
 
-    cell_              = new int[n_cells_tot_];
-    linked_list_        = new int[n_part_];
+    cell_                = new int[n_cells_tot_];
+    linked_list_         = new int[n_part_];
     p_cell_ids_          = new int[n_part_]{};
-    cell_neighbours_    = new int[27 * n_cells_tot_];
+    cell_neighbours_     = new int[27 * n_cells_tot_];
     cell_dir_neighbours_ = new int[54 * n_cells_tot_];
     cell_vol_neighbours_ = new int[14 * n_cells_tot_];
 

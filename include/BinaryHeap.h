@@ -12,17 +12,15 @@ class BinaryHeap;
 
 template<typename T>
 void serialize(Archive&, const BinaryHeap<T>&);
+template<typename T>
+void deserialize(Archive&, BinaryHeap<T>*);
 
 template< class T, class Compare >
 class BinaryHeap{
 public:
-    BinaryHeap(void){
-        data_.push_back(T());
-    }
-
-    ~BinaryHeap(void){
-        clear();
-    }
+    BinaryHeap(void):
+        data_(1)
+    {}
     
     BinaryHeap(const BinaryHeap& other) = delete;
 
@@ -31,6 +29,7 @@ public:
     {}
 
     friend void serialize<T>(Archive& ar, const BinaryHeap<T>&);
+    friend void deserialize<T>(Archive& ar, BinaryHeap<T>*);
 
     void clear(void){
         data_.clear();
@@ -91,6 +90,11 @@ Compare BinaryHeap<T, Compare>::comp_ = Compare();
 template<typename T>
 void serialize(Archive& ar, const BinaryHeap<T>& bh){
     serialize(ar, bh.data_);
+}
+
+template<typename T>
+void deserialize(Archive& ar, BinaryHeap<T>* bh){
+    deserialize(ar, &bh->data_);
 }
 
 

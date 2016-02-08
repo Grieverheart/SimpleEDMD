@@ -5,6 +5,8 @@
 #include "shape/variant_fwd.h"
 #include <boost/variant.hpp>
 
+//NOTE: Boost Variant does not implement move semantics.
+
 class ShapeOutRadiusVisitor: public boost::static_visitor<double>{
 public:
     double operator()(const shape::Polyhedron& poly)const{

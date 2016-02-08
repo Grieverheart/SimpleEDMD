@@ -1,5 +1,7 @@
 #include "configuration.h"
 #include "shape/variant.h"
+#include "serialization/common.h"
+#include "serialization/vector.h"
 
 class SerializationVisitor: public boost::static_visitor<>{
 public:
@@ -49,4 +51,32 @@ void serialize(Archive& ar, const Configuration& config){
     serialize(ar, config.shapes_.size());
     for(auto shape: config.shapes_) boost::apply_visitor(SerializationVisitor(ar), *shape);
     serialize(ar, config.pbc_);
+}
+
+void deserialize(Archive& ar, Configuration* config){
+    using size_type = decltype(config->shapes_)::size_type;
+
+    deserialize(ar, &config->particles_);
+    size_type shapes_size = 0;
+    deserialize(ar, &shapes_size);
+    config->shapes_.resize(shapes_size);
+    for(auto& shape_ptr: config->shapes_){
+        int shape_type;
+        deserialize(ar, &shape_type);
+        switch(shape_type){
+            case shape::POLYHEDRON:{
+                shape::Polyhedron poly;
+                deserialize(ar, &poly);
+                shape_ptr = new shape::Variant(poly);
+            } break;
+            case shape::SPHERE:{
+                shape::Sphere sph;
+                deserialize(ar, &sph);
+                shape_ptr = new shape::Variant(sph);
+            } break;
+            //TODO: Implement panic handling.
+            default: break;
+        }
+    }
+    deserialize(ar, &config->pbc_);
 }

@@ -16,6 +16,7 @@
 class Simulation{
 public:
     Simulation(const Configuration& config);
+    Simulation(void);
 
     void run(double end_time, PeriodicCallback& output_condition);
 
@@ -29,6 +30,7 @@ public:
     int get_num_collisions(void)const;
 
     friend void serialize(Archive&, const Simulation&);
+    friend void deserialize(Archive&, Simulation*);
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;
