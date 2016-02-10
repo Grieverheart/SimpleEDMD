@@ -13,7 +13,7 @@ OBJ+=$(patsubst external/tinyxml2/%.cpp, bin/%.o, $(TINYXML_SRC))
 EXE=main
 
 CC=g++
-CFLAGS=-Wall -Wno-unused-function -g -O3 -std=c++0x -march=native -DNDEBUG -I./include -I./external
+CFLAGS=-Wall -Wno-unused-function -g -O3 -std=c++11 -march=native -DNDEBUG -I./include -I./external
 LDFLAGS= -lm
 RM=rm
 

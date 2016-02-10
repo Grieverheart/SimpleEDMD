@@ -177,6 +177,10 @@ public:
                 clam::Vec3d shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
 
                 double distance = shortest_dist.length();
+                if(distance == 0.0){
+                    shortest_dist = overlap::gjk_distance(partA, a, partB, b);
+                    distance = shortest_dist.length();
+                }
                 clam::Vec3d shortest_dist_n = shortest_dist / distance;
 
                 /* Conservative advancement by Mirtich 1996 PhD Thesis */
@@ -219,7 +223,7 @@ public:
                         partA.time = time;
                         shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
                         //NOTE: This should alsmost never happen.
-                        if(iter++ > 100) return ParticleEvent::None();
+                        if(iter++ > 1000) return ParticleEvent::None();
                     }
 
                     return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
@@ -405,15 +409,15 @@ void Simulation::run_cell_cross_event(const ParticleEvent& event){
     event_mgr_.update(pid);
 }
 
-const std::vector<Particle>& Simulation::get_particles(void)const{
+const std::vector<Particle>& Simulation::particles(void)const{
     return particles_;
 }
 
-const RectangularPBC& Simulation::get_pbc(void)const{
+const RectangularPBC& Simulation::pbc(void)const{
     return pbc_;
 }
 
-const Configuration& Simulation::get_configuration(void)const{
+const Configuration& Simulation::configuration(void)const{
     return config_;
 }
 Simulation::Simulation(void):
@@ -547,16 +551,28 @@ void Simulation::reset_statistics(void){
     n_collision_events_    = 0;
 }
 
-int Simulation::get_num_collisions(void)const{
+int Simulation::num_collisions(void)const{
     return n_collision_events_;
 }
 
-double Simulation::get_average_stress(void)const{
+double Simulation::time(void)const{
+    return time_;
+}
+
+double Simulation::average_stress(void)const{
     return av_momentum_transfer_ / (time_ - statistics_start_time_);
 }
 
-double Simulation::get_average_kinetic_energy(void)const{
+double Simulation::average_kinetic_energy(void)const{
     return base_kinetic_energy_ + av_kinetic_delta_ / (time_ - statistics_start_time_);
+}
+
+double Simulation::average_pressure(void)const{
+    clam::Vec3d box_size = pbc_.getSize();
+    double volume = box_size[0] * box_size[1] * box_size[2];
+    double kT = 2.0 * average_kinetic_energy() / (3.0 * particles_.size());
+    double pressure = (particles_.size() - average_stress() / (3.0 * kT)) / volume;
+    return pressure;
 }
 
 void serialize(Archive& ar, const Simulation& sim){

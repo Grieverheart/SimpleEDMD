@@ -43,8 +43,27 @@ double packing_fraction(const Configuration& config){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
+    double output_start_time = 0.01;
+    double output_delta = 1.0;
 
-    {
+    if(strcmp(argv[1], "-r") == 0){
+        FILE* fp = fopen(argv[2], "rb");
+        fseek(fp, 0l, SEEK_END);
+        size_t file_size = ftell(fp);
+        fseek(fp, 0l, SEEK_SET);
+        char* data = reinterpret_cast<char*>(malloc(file_size));
+        fread(data, file_size, 1, fp);
+        fclose(fp);
+
+        Archive ar(data, file_size);
+        sim = new Simulation();
+        deserialize(ar, sim);
+
+        free(data);
+
+        output_start_time = sim->time() + output_delta;
+    }
+    else{
         Configuration config;
         xml_load_config(argv[1], config);
 
@@ -60,13 +79,13 @@ int main(int argc, char *argv[]){
         sim = new Simulation(config);
     }
 
-    PeriodicCallback output(0.01);
-    output.setNextFunction([](double time){
-        return time + 0.1;
+    PeriodicCallback output(output_start_time);
+    output.setNextFunction([output_delta](double time){
+        return time + output_delta;
     });
     output.setCallback([sim](double time){
         static int nFiles = 0;
-        Configuration config = sim->get_configuration();
+        Configuration config = sim->configuration();
 
         for(auto& particle: config.particles_){
             update_particle(particle, time, config.pbc_);
@@ -77,8 +96,8 @@ int main(int argc, char *argv[]){
         xml_save_config(buff, config);
         clam::Vec3d box_size = config.pbc_.getSize();
         double volume = box_size[0] * box_size[1] * box_size[2];
-        double kT = 2.0 * sim->get_average_kinetic_energy() / (3.0 * config.particles_.size());
-        double pressure = (config.particles_.size() - sim->get_average_stress() / (3.0 * kT)) / volume;
+        double kT = 2.0 * sim->average_kinetic_energy() / (3.0 * config.particles_.size());
+        double pressure = (config.particles_.size() - sim->average_stress() / (3.0 * kT)) / volume;
         printf("%e: %f\t%f\n", time, pressure, kT);
         sim->reset_statistics();
 
@@ -98,38 +117,17 @@ int main(int argc, char *argv[]){
             }
         }
         assert(overlaps == false);
+        //if(overlaps) exit(0);
 #endif
+        Archive ar;
+        serialize(ar, *sim);
+        sprintf(buff, "Data/archive.pid%u.bin", getpid());
+        FILE* fp = fopen(buff, "wb");
+        fwrite(ar.data(), 1, ar.size(), fp);
+        fclose(fp);
     });
 
-
-    //sim->run(0.1, output);
-
-    //{
-    //    Archive ar;
-    //    serialize(ar, *sim);
-    //    FILE* fp = fopen("Data/config.core", "wb");
-    //    fwrite(ar.data(), 1, ar.size(), fp);
-    //    fclose(fp);
-    //}
-
-    //{
-    //    FILE* fp = fopen("Data/config.core", "rb");
-    //    fseek(fp, 0l, SEEK_END);
-    //    size_t file_size = ftell(fp);
-    //    fseek(fp, 0l, SEEK_SET);
-    //    char* data = reinterpret_cast<char*>(malloc(file_size));
-    //    fread(data, file_size, 1, fp);
-    //    fclose(fp);
-
-    //    Archive ar(data, file_size);
-    //    deserialize(ar, sim);
-
-    //    free(data);
-    //}
-
-    sim->run(0.21, output);
-
-    delete sim;
+    sim->run(1000.0, output);
 
     return 0;
 }

@@ -20,14 +20,17 @@ public:
 
     void run(double end_time, PeriodicCallback& output_condition);
 
-    const std::vector<Particle>& get_particles(void)const;
-    const RectangularPBC& get_pbc(void)const;
-    const Configuration& get_configuration(void)const;
+    const std::vector<Particle>& particles(void)const;
+    const RectangularPBC& pbc(void)const;
+    const Configuration& configuration(void)const;
 
     void reset_statistics(void);
-    double get_average_stress(void)const;
-    double get_average_kinetic_energy(void)const;
-    int get_num_collisions(void)const;
+
+    double time(void)const;
+    double average_stress(void)const;
+    double average_kinetic_energy(void)const;
+    double average_pressure(void)const;
+    int num_collisions(void)const;
 
     friend void serialize(Archive&, const Simulation&);
     friend void deserialize(Archive&, Simulation*);
