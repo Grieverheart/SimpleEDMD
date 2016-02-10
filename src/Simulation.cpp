@@ -19,11 +19,6 @@ static void print_particle(const Particle& p){
 }
 
 namespace{
-    template<typename T>
-    inline T sqr(const T& x){
-        return x * x;
-    }
-
     template<typename F>
     inline bool foreach_pair(const CellList& cll_, F func){
         for(auto cell: cll_.cells()){

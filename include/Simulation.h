@@ -67,6 +67,8 @@ private:
     EventManager event_mgr_;
     CellList     cll_;
 
+    //NOTE: This is not being serialized as it only used at the start of
+    //the simulation. In any case, it doesn't hurt if we reseed it.
     std::mt19937 mtGen_;
 
     class ShapeCollisionEventVisitor;
