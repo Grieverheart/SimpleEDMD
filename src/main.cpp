@@ -43,8 +43,10 @@ double packing_fraction(const Configuration& config){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
+    const double output_delta = 1.0;
     double output_start_time = 0.01;
-    double output_delta = 1.0;
+
+    const auto& directory = argv[3];
 
     if(strcmp(argv[1], "-r") == 0){
         FILE* fp = fopen(argv[2], "rb");
@@ -79,11 +81,21 @@ int main(int argc, char *argv[]){
         sim = new Simulation(config);
     }
 
+    double pf = packing_fraction(sim->configuration());
+
     PeriodicCallback output(output_start_time);
     output.setNextFunction([output_delta](double time){
         return time + output_delta;
     });
-    output.setCallback([sim](double time){
+
+    FILE* pressure_fp;
+    {
+        char fp_buff[64];
+        sprintf(fp_buff, "%s/pressure.pf%.3f.pid%u.dat", directory, pf, getpid());
+        pressure_fp = fopen(fp_buff, "w");
+    }
+
+    output.setCallback([sim, pf, pressure_fp, directory](double time){
         static int nFiles = 0;
         Configuration config = sim->configuration();
 
@@ -92,13 +104,12 @@ int main(int argc, char *argv[]){
         }
 
         char buff[64];
-        sprintf(buff, "Data/pid%u.%06u.xml", getpid(), ++nFiles);
+        sprintf(buff, "%s/pid%u.pf%.3f.step%06u.xml", directory, getpid(), pf, ++nFiles);
         xml_save_config(buff, config);
-        clam::Vec3d box_size = config.pbc_.getSize();
-        double volume = box_size[0] * box_size[1] * box_size[2];
-        double kT = 2.0 * sim->average_kinetic_energy() / (3.0 * config.particles_.size());
-        double pressure = (config.particles_.size() - sim->average_stress() / (3.0 * kT)) / volume;
-        printf("%e: %f\t%f\n", time, pressure, kT);
+
+        fprintf(pressure_fp, "%e\t%e\n", sim->time(), sim->average_pressure());
+        fflush(pressure_fp);
+
         sim->reset_statistics();
 
 #ifndef NDEBUG
@@ -121,13 +132,15 @@ int main(int argc, char *argv[]){
 #endif
         Archive ar;
         serialize(ar, *sim);
-        sprintf(buff, "Data/archive.pid%u.bin", getpid());
+        sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
         FILE* fp = fopen(buff, "wb");
         fwrite(ar.data(), 1, ar.size(), fp);
         fclose(fp);
     });
 
-    sim->run(1000.0, output);
+    sim->run(500.0, output);
+
+    fclose(pressure_fp);
 
     return 0;
 }
