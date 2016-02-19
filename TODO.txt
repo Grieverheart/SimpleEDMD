@@ -8,6 +8,7 @@
 --Add simulation serialization.
 --Add simulation deserialization.
 Improve simulation callback (PeriodicCallback).
+Implement different broadphase algorithms that might speed up simulations of very anisotropic particle shapes.
 Find a boost.variant replacement or roll your own (move semantics would be nice).
 Consider using Cereal for (de)serialization.
 Try implementing TOI using SAT for polyhedra, and compare performance.
