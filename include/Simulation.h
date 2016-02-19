@@ -13,6 +13,20 @@
 #include "shape/variant_fwd.h"
 #include "serialization/archive.h"
 
+//Variant<OBB, Sphere>
+struct BBShape{
+    double out_radius(void)const{
+        return half_size_.length();
+    }
+    clam::Vec3d pos_;
+    clam::Vec3d half_size_;
+};
+
+struct BoundingBox{
+    clam::Vec3d pos_;
+    clam::Quatd rot_;
+};
+
 class Simulation{
 public:
     Simulation(const Configuration& config);
@@ -47,6 +61,7 @@ private:
     double prev_time_;
     double statistics_start_time_;
     double closest_distance_tol_;
+    double obb_margin_;
     double max_collision_time_;
 
     double av_momentum_transfer_;
@@ -66,6 +81,10 @@ private:
     RectangularPBC& pbc_;
     std::vector<Particle>& particles_;
     std::vector<shape::Variant*>& shapes_;
+
+    //TODO: delete these
+    BBShape* box_shapes_;
+    BoundingBox* boxes_;
 
     EventManager event_mgr_;
     CellList     cll_;

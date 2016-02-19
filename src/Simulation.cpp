@@ -138,6 +138,35 @@ namespace{
         double& momentum_transfer_;
         double& kinetic_delta_;
     };
+
+    class BoundingBoxVisitor: public boost::static_visitor<BBShape> {
+    public:
+        BoundingBoxVisitor(double margin):
+            margin_(margin)
+        {}
+        template<typename T>
+        BBShape operator()(const T& shape)const{
+            double max_x = shape.support(clam::Vec3d(1.0, 0.0, 0.0))[0];
+            double min_x = shape.support(clam::Vec3d(-1.0, 0.0, 0.0))[0];
+            double max_y = shape.support(clam::Vec3d(0.0, 1.0, 0.0))[1];
+            double min_y = shape.support(clam::Vec3d(0.0, -1.0, 0.0))[1];
+            double max_z = shape.support(clam::Vec3d(0.0, 0.0, 1.0))[2];
+            double min_z = shape.support(clam::Vec3d(0.0, 0.0, -1.0))[2];
+            clam::Vec3d max_r = clam::Vec3d(max_x, max_y, max_z);
+            clam::Vec3d min_r = clam::Vec3d(min_x, min_y, min_z);
+
+            return BBShape{
+                0.5 * (max_r + min_r),
+                0.5 * (max_r - min_r) + margin_
+            };
+        }
+    private:
+        double margin_;
+    };
+
+    BBShape calc_bounding_box(const shape::Variant& shape, double margin){
+        return boost::apply_visitor(BoundingBoxVisitor(margin), shape);
+    }
 }
 
 class Simulation::ShapeCollisionEventVisitor: public boost::static_visitor<ParticleEvent> {
@@ -429,6 +458,7 @@ Simulation::Simulation(const Configuration& config):
     time_(0.0),
     statistics_start_time_(0.0),
     closest_distance_tol_(1.0e-8), //@note: increase tolerance to increase performance.
+    obb_margin_(0.1),
     max_collision_time_(5.0),
     av_momentum_transfer_(0.0),
     av_kinetic_delta_(0.0), base_kinetic_energy_(0.0), kinetic_delta_(0.0),
@@ -447,12 +477,25 @@ Simulation::Simulation(const Configuration& config):
     //Initialize number of collisions to zero
     n_collisions_.resize(n_part, 0);
 
-    //Initialize cell list
+    //Initialize obb shapes
+    box_shapes_ = new BBShape[shapes_.size()];
+    for(size_t i = 0; i < shapes_.size(); ++i){
+        box_shapes_[i] = calc_bounding_box(*shapes_[i], obb_margin_);
+    }
+
+    boxes_ = new BoundingBox[n_part];
     double max_radius = 0.0;
-    for(auto particle: particles_){
-        double outradius = particle.size * boost::apply_visitor(ShapeOutRadiusVisitor(), *shapes_[particle.shape_id]);
+    for(size_t i = 0; i < n_part; ++i){
+        const auto& particle = particles_[i];
+        boxes_[i].pos_ = particle.pos;
+        boxes_[i].rot_ = particle.rot;
+
+        //NOTE: Can cache radii for each shape
+        double outradius = particle.size * box_shapes_[particle.shape_id].out_radius();
         max_radius = std::max(max_radius, outradius);
     }
+
+    //Initialize cell list
     cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
 
     //Initialize paricle velocities
