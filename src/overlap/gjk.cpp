@@ -704,7 +704,7 @@ namespace overlap{
             double dn = dot(dir, new_point);
             if(dn < 0.0 || S.contains(new_point)) return false;
             S.add_point(new_point);
-            if(S.contains_origin(dir)) return true;
+            if(S.contains_origin(dir) || dir.length2() == 0.0) return true;
         }
 
         printf("Encountered error in GJK boolean: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);

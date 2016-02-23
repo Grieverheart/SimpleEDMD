@@ -2,9 +2,11 @@
 #include <cmath>
 #include "Simulation.h"
 #include "shape/variant.h"
+#include "shape/box.h"
 #include "overlap/ray_casting.h"
 #include "overlap/gjk.h"
 #include "overlap/overlap.h"
+#include "overlap/obb.h"
 #include "serialization/common.h"
 #include "serialization/vector.h"
 
@@ -298,6 +300,106 @@ private:
     int pb_idx_;
 };
 
+class Simulation::ShapeBoxCrossEventVisitor: public boost::static_visitor<ParticleEvent> {
+public:
+    ShapeBoxCrossEventVisitor(const Simulation& sim, int pid):
+        sim_(sim), pid_(pid)
+    {}
+
+    template<typename T>
+    ParticleEvent operator()(const T& shape)const{
+        Particle part = sim_.particles_[pid_];
+        BoundingBox bbox = sim_.boxes_[pid_];
+        clam::Vec3d dist = sim_.pbc_.minImage(part.pos - bbox.pos_);
+
+        double time(0.0);
+
+        auto bbox_inv_rot = bbox.rot_.inv();
+
+        stream_rotation(part, sim_.time_);
+        part.pos  = bbox_inv_rot.rotate(dist);
+        part.rot  = bbox_inv_rot * part.rot;
+        part.vel  = bbox_inv_rot.rotate(part.vel);
+        part.ang_vel = bbox_inv_rot.rotate(part.ang_vel);
+        part.time = 0.0;
+
+        clam::Vec3d half_size_ = sim_.box_shapes_[part.shape_id].half_size_;
+        double out_radius = part.size * shape_outradius(shape);
+
+        //TODO: Look into high iteration number!!!
+        while(true){
+            double max_advance = 100000.0;
+            double distance = 0.0;
+            for(int i = 0; i < 3; ++i){
+                auto dir = clam::Vec3d(0.0);
+                dir[i] = 1.0;
+                auto dir_p = part.rot.inv().rotate(dir);
+                double dist = half_size_[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
+                double max_vel = part.vel[i] + part.ang_vel.length() * out_radius;
+                if(max_vel > 0.0){
+                    double advance = dist / max_vel;
+                    if(advance < max_advance){
+                        distance = dist;
+                        max_advance = advance;
+                    }
+                }
+                dist = half_size_[i] + part.rot.rotate(shape.support(-dir_p))[i] + part.pos[i];
+                max_vel = -part.vel[i] + part.ang_vel.length() * out_radius;
+                if(max_vel > 0.0){
+                    double advance = dist / max_vel;
+                    if(advance < max_advance){
+                        distance = dist;
+                        max_advance = advance;
+                    }
+                }
+            }
+
+            if(distance < sim_.closest_distance_tol_){
+                int iter = 0;
+                //TODO: Advance backwards (max_advance)
+                while(distance < sim_.closest_distance_tol_){
+                    time *= 0.999;
+                    stream_position(part, time);
+                    stream_rotation(part, time);
+                    part.time = time;
+
+                    distance = 100000.0;
+                    for(int i = 0; i < 3; ++i){
+                        auto dir = clam::Vec3d(0.0);
+                        dir[i] = 1.0;
+                        auto dir_p = part.rot.inv().rotate(dir);
+                        double dist = half_size_[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
+                        if(dist < distance) distance = dist;
+                        dist = half_size_[i] + part.rot.rotate(shape.support(-dir_p))[i] + part.pos[i];
+                        if(dist < distance) distance = dist;
+                    }
+                    //NOTE: This should alsmost never happen.
+                    if(iter++ > 1000) return ParticleEvent::None();
+                }
+
+                return ParticleEvent::CellCross(sim_.time_ + time, pid_, 0);
+            }
+
+            time += max_advance;
+
+            stream_position(part, time);
+            stream_rotation(part, time);
+            part.time = time;
+        }
+
+        return ParticleEvent::None();
+    }
+
+    //TODO: Implement
+    ParticleEvent operator()(const shape::Sphere& a, const shape::Sphere& b)const{
+        return ParticleEvent::None();
+    }
+
+private:
+    const Simulation& sim_;
+    int pid_;
+};
+
 ParticleEvent Simulation::get_collision_event(int pA, int pB)const{
     return boost::apply_visitor(
         ShapeCollisionEventVisitor(*this, pA, pB),
@@ -306,11 +408,7 @@ ParticleEvent Simulation::get_collision_event(int pA, int pB)const{
 }
 
 ParticleEvent Simulation::get_cell_cross_event(int pid)const{
-    int cidx = cll_.cell_index(pid);
-    double time(0.0);
-    clam::Vec3d rpos = pbc_.minImage(particles_[pid].pos - cll_.cell_origin(cidx));
-    int cellOffset = overlap::cell_raycast(cll_.cell_size(), rpos, particles_[pid].vel, time);
-    return ParticleEvent::CellCross(time_ + time, pid, cellOffset);
+    return boost::apply_visitor(ShapeBoxCrossEventVisitor(*this, pid), *shapes_[particles_[pid].shape_id]);
 }
 
 //NOTE: For simplicity, for now we assume equal mass spheres
@@ -376,23 +474,20 @@ void Simulation::run_collision_event(const ParticleEvent& event){
     }
 
     //Recalculate collision events
-    for(int cid: cll_.particle_cell_nbs(pA)){
-        for(int n: cll_.cell_content(cid)){
-            if(n != pA && n != pB){
-                //update_particle(particles_[n], time_, pbc_);
-                auto event = get_collision_event(pA, n);
-                if(event.get_type() != PE_NONE) event_mgr_.push(pA, event);
-            }
+    //NOTE: In principle n != pA
+    for(int n: nnl_[pA]){
+        if(n != pA && n != pB){
+            //update_particle(particles_[n], time_, pbc_);
+            auto event = get_collision_event(pA, n);
+            if(event.get_type() != PE_NONE) event_mgr_.push(pA, event);
         }
     }
 
-    for(int cid: cll_.particle_cell_nbs(pB)){
-        for(int n: cll_.cell_content(cid)){
-            if(n != pA && n != pB){
-                //update_particle(particles_[n], time_, pbc_);
-                auto event = get_collision_event(pB, n);
-                if(event.get_type() != PE_NONE) event_mgr_.push(pB, event);
-            }
+    for(int n: nnl_[pB]){
+        if(n != pA && n != pB){
+            //update_particle(particles_[n], time_, pbc_);
+            auto event = get_collision_event(pB, n);
+            if(event.get_type() != PE_NONE) event_mgr_.push(pB, event);
         }
     }
 
@@ -423,15 +518,37 @@ void Simulation::run_possible_collision_event(const ParticleEvent& event){
 }
 
 void Simulation::run_cell_cross_event(const ParticleEvent& event){
-    int pid     = event.pid_;
-    int coffset = event.get_id();
-    cll_.move(pid, coffset);
+    int pid = event.pid_;
+
+    for(int nb: nnl_[pid]){
+        if(nb == pid) continue;
+        //Perhaps remove_if
+        nnl_[nb].erase(std::find(nnl_[nb].begin(), nnl_[nb].end(), pid));
+    }
+    nnl_[pid].clear();
+
     update_particle(particles_[pid], time_, pbc_);
-    for(int cid: cll_.cell_dir_nbs(cll_.cell_index(pid), coffset)){
+    boxes_[pid].pos_ = particles_[pid].pos;
+    boxes_[pid].rot_ = particles_[pid].rot;
+
+    cll_.update(pid, boxes_[pid].pos_);
+
+    auto shape_id_a = particles_[pid].shape_id;
+
+    for(int cid: cll_.cell_nbs(cll_.cell_index(pid))){
         for(int n: cll_.cell_content(cid)){
-            //update_particle(particles_[n], time_, pbc_);
-            auto event = get_collision_event(pid, n);
-            if(event.get_type() != PE_NONE) event_mgr_.push(pid, event);
+            if(n == pid) continue;
+            auto shape_id_b = particles_[n].shape_id;
+            auto bba = boxes_[pid];
+            auto bbb = boxes_[n];
+            bbb.pos_ = pbc_.minImage(bbb.pos_ - bba.pos_);
+            bba.pos_ = 0.0;
+            if(overlap::obb_overlap(bba, box_shapes_[shape_id_a], bbb, box_shapes_[shape_id_b])){
+                nnl_[pid].push_back(n);
+                nnl_[n].push_back(pid);
+                auto event = get_collision_event(pid, n);
+                if(event.get_type() != PE_NONE) event_mgr_.push(pid, event);
+            }
         }
     }
     event_mgr_.push(pid, get_cell_cross_event(pid));
@@ -479,29 +596,16 @@ Simulation::Simulation(const Configuration& config):
 
     //Initialize obb shapes
     box_shapes_ = new BBShape[shapes_.size()];
-    for(size_t i = 0; i < shapes_.size(); ++i){
-        box_shapes_[i] = calc_bounding_box(*shapes_[i], obb_margin_);
-    }
+    for(size_t i = 0; i < shapes_.size(); ++i) box_shapes_[i] = calc_bounding_box(*shapes_[i], obb_margin_);
 
     boxes_ = new BoundingBox[n_part];
     double max_radius = 0.0;
-    for(size_t i = 0; i < n_part; ++i){
-        const auto& particle = particles_[i];
-        boxes_[i].pos_ = particle.pos;
-        boxes_[i].rot_ = particle.rot;
-
-        //NOTE: Can cache radii for each shape
-        double outradius = particle.size * box_shapes_[particle.shape_id].out_radius();
-        max_radius = std::max(max_radius, outradius);
-    }
-
-    //Initialize cell list
-    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
-
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
     clam::Vec3d sys_vel;
     for(size_t i = 0; i < n_part; ++i){
+        auto& particle = particles_[i];
+
         double x1, x2, r;
         do{
             x1 = dist(mtGen_);
@@ -509,27 +613,45 @@ Simulation::Simulation(const Configuration& config):
             r = x1 * x1 + x2 * x2;
         }while(r >= 1.0);
         double s = 2.0 * sqrt(1.0 - r);
-        clam::Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
 
-        //IMPORTANT: If the particle lies exactly on the cell boundary, we get
-        //errors in the simulation. The time for the next cell crossing is
-        //correctly found to be 0.0, but the event calendar cannot handle
-        //simultaneous events.
+        clam::Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
         sys_vel += vec;
-        particles_[i].vel = vec;
-        particles_[i].pos = pbc_.apply(particles_[i].pos + 0.1); //Make sure pbc are correct at start.
-        cll_.add(i, particles_[i].pos);
+        particle.vel = vec;
+
+        particle.pos = pbc_.apply(particle.pos + 0.1); //Make sure pbc are correct at start.
+        boxes_[i].pos_ = particle.pos;
+        boxes_[i].rot_ = particle.rot;
+
+        //NOTE: Can cache radii for each shape
+        double outradius = particle.size * box_shapes_[particle.shape_id].out_radius();
+        max_radius = std::max(max_radius, outradius);
     }
     sys_vel = sys_vel * (1.0 / n_part);
 
+    //Initialize cell list
+    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
     for(size_t i = 0; i < n_part; ++i){
         particles_[i].vel -= sys_vel;
         base_kinetic_energy_ += 0.5 * particles_[i].vel.length2();
+        cll_.add(i, particles_[i].pos);
     }
 
+    //Initialize nnl
+    nnl_ = new std::vector<size_t>[n_part];
+
     foreach_pair(cll_, [this](int i, int j) -> bool {
-        auto event = get_collision_event(i, j);
-        if(event.get_type() != PE_NONE) event_mgr_.push(i, event);
+        auto shape_id_i = particles_[i].shape_id;
+        auto shape_id_j = particles_[j].shape_id;
+        auto bbi = boxes_[i];
+        auto bbj = boxes_[j];
+        bbj.pos_ = pbc_.minImage(boxes_[j].pos_ - boxes_[i].pos_);
+        bbi.pos_ = 0.0;
+        if(overlap::obb_overlap(bbi, box_shapes_[shape_id_i], bbj, box_shapes_[shape_id_j])){
+            nnl_[i].push_back(j);
+            nnl_[j].push_back(i);
+            auto event = get_collision_event(i, j);
+            if(event.get_type() != PE_NONE) event_mgr_.push(i, event);
+        }
 //Check for overlaps at start of simulation.
 #ifndef NDEBUG
         Particle pa = particles_[i];
@@ -543,6 +665,7 @@ Simulation::Simulation(const Configuration& config):
 
     for(size_t i = 0; i < n_part; ++i){
         auto event = get_cell_cross_event(i);
+        assert(event.get_type() != PE_NONE);
         event_mgr_.push(i, event);
     }
 

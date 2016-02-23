@@ -85,6 +85,7 @@ private:
     //TODO: delete these
     BBShape* box_shapes_;
     BoundingBox* boxes_;
+    std::vector<size_t>* nnl_;
 
     EventManager event_mgr_;
     CellList     cll_;
@@ -94,6 +95,7 @@ private:
     std::mt19937 mtGen_;
 
     class ShapeCollisionEventVisitor;
+    class ShapeBoxCrossEventVisitor;
 };
 
 #endif

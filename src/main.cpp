@@ -43,7 +43,7 @@ double packing_fraction(const Configuration& config){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
-    const double output_delta = 1.0;
+    const double output_delta = 0.1;
     double output_start_time = 0.01;
 
     const auto& directory = argv[3];
@@ -96,6 +96,7 @@ int main(int argc, char *argv[]){
     }
 
     output.setCallback([sim, pf, pressure_fp, directory](double time){
+        printf("%f\n", time);
         static int nFiles = 0;
         Configuration config = sim->configuration();
 
@@ -112,7 +113,7 @@ int main(int argc, char *argv[]){
 
         sim->reset_statistics();
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
         //Check for overlaps
         bool overlaps = false;
         for(size_t i = 0; i < config.particles_.size(); ++i){
@@ -127,9 +128,9 @@ int main(int argc, char *argv[]){
                 }
             }
         }
-        assert(overlaps == false);
+        //assert(overlaps == false);
         //if(overlaps) exit(0);
-#endif
+//#endif
         Archive ar;
         serialize(ar, *sim);
         sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());

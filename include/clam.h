@@ -318,6 +318,28 @@ namespace clam{
             return vec + 2.0 * cross(v_, cross(v_, vec) + w_ * vec);
         }
 
+        void to_matrix(T* data)const{
+            double q00 = v_[0] * v_[0];
+            double q11 = v_[1] * v_[1];
+            double q22 = v_[2] * v_[2];
+            double q01 = v_[0] * v_[1];
+            double q02 = v_[0] * v_[2];
+            double q12 = v_[0] * v_[2];
+            double q0w = v_[0] * w_;
+            double q1w = v_[1] * w_;
+            double q2w = v_[2] * w_;
+
+            data[0] = 1.0 - 2.0 * (q11 + q22);
+            data[1] = 2.0 * (q01 + q2w);
+            data[2] = 2.0 * (q02 - q1w);
+            data[3] = 2.0 * (q01 - q2w);
+            data[4] = 1.0 - 2.0 * (q00 + q22);
+            data[5] = 2.0 * (q12 + q0w);
+            data[6] = 2.0 * (q02 + q1w);
+            data[7] = 2.0 * (q12 - q0w);
+            data[8] = 1.0 - 2.0 * (q00 + q11);
+        }
+
         void toAxisAngle(T& angle, Vec3<T>& axis)const{
             if(w_ * w_ < 1.0){
                 T s = 1.0 / sqrt(1.0 - w_ * w_);
