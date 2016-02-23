@@ -113,7 +113,7 @@ int main(int argc, char *argv[]){
 
         sim->reset_statistics();
 
-//#ifndef NDEBUG
+#ifndef NDEBUG
         //Check for overlaps
         bool overlaps = false;
         for(size_t i = 0; i < config.particles_.size(); ++i){
@@ -128,9 +128,9 @@ int main(int argc, char *argv[]){
                 }
             }
         }
-        //assert(overlaps == false);
+        assert(overlaps == false);
         //if(overlaps) exit(0);
-//#endif
+#endif
         Archive ar;
         serialize(ar, *sim);
         sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
