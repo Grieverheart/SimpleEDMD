@@ -10,20 +10,6 @@
 #include "serialization/common.h"
 #include "serialization/vector.h"
 
-__inline__ uint64_t rdtsc() {
-    uint32_t low, high;
-    __asm__ __volatile__ (
-        "xorl %%eax,%%eax \n    cpuid"
-        ::: "%rax", "%rbx", "%rcx", "%rdx" );
-    __asm__ __volatile__ ("rdtsc" : "=a" (low), "=d" (high));
-    return (uint64_t)high << 32 | low;
-}
-
-static double overlap_clocks = 0.0;
-static double cross_clocks = 0.0;
-static uint64_t n_overlap_calls = 0;
-static uint64_t n_cross_calls = 0;
-
 static void print_particle(const Particle& p){
     printf("pos: glm::vec3(%e, %e, %e)\n", p.pos[0], p.pos[1], p.pos[2]);
     clam::Vec3d axis;
@@ -157,9 +143,6 @@ namespace{
 
     class BoundingBoxVisitor: public boost::static_visitor<BBShape> {
     public:
-        BoundingBoxVisitor(double margin):
-            margin_(margin)
-        {}
         template<typename T>
         BBShape operator()(const T& shape)const{
             double max_x = shape.support(clam::Vec3d(1.0, 0.0, 0.0))[0];
@@ -173,15 +156,13 @@ namespace{
 
             return BBShape{
                 0.5 * (max_r + min_r),
-                0.5 * (max_r - min_r) + margin_
+                0.5 * (max_r - min_r)
             };
         }
-    private:
-        double margin_;
     };
 
-    BBShape calc_bounding_box(const shape::Variant& shape, double margin){
-        return boost::apply_visitor(BoundingBoxVisitor(margin), shape);
+    BBShape calc_bounding_box(const shape::Variant& shape){
+        return boost::apply_visitor(BoundingBoxVisitor(), shape);
     }
 }
 
@@ -419,11 +400,7 @@ ParticleEvent Simulation::get_collision_event(int pA, int pB)const{
 }
 
 ParticleEvent Simulation::get_cell_cross_event(int pid)const{
-    auto clocks_now = rdtsc();
-    auto ret = boost::apply_visitor(ShapeBoxCrossEventVisitor(*this, pid), *shapes_[particles_[pid].shape_id]);
-    cross_clocks += rdtsc() - clocks_now;
-    ++n_cross_calls;
-    return ret;
+    return boost::apply_visitor(ShapeBoxCrossEventVisitor(*this, pid), *shapes_[particles_[pid].shape_id]);
 }
 
 //NOTE: For simplicity, for now we assume equal mass spheres
@@ -558,11 +535,7 @@ void Simulation::run_cell_cross_event(const ParticleEvent& event){
             auto bbb = boxes_[n];
             bbb.pos_ = pbc_.minImage(bbb.pos_ - bba.pos_);
             bba.pos_ = 0.0;
-            auto clocks_now = rdtsc();
-            bool overlap = overlap::obb_overlap(bba, box_shapes_[shape_id_a], bbb, box_shapes_[shape_id_b]);
-            overlap_clocks += rdtsc() - clocks_now;
-            ++n_overlap_calls;
-            if(overlap){
+            if(overlap::obb_overlap(bba, box_shapes_[shape_id_a], bbb, box_shapes_[shape_id_b], obb_margin_)){
                 nnl_[pid].push_back(n);
                 nnl_[n].push_back(pid);
                 auto event = get_collision_event(pid, n);
@@ -615,7 +588,7 @@ Simulation::Simulation(const Configuration& config):
 
     //Initialize obb shapes
     box_shapes_ = new BBShape[shapes_.size()];
-    for(size_t i = 0; i < shapes_.size(); ++i) box_shapes_[i] = calc_bounding_box(*shapes_[i], obb_margin_);
+    for(size_t i = 0; i < shapes_.size(); ++i) box_shapes_[i] = calc_bounding_box(*shapes_[i]);
 
     boxes_ = new BoundingBox[n_part];
     double max_radius = 0.0;
@@ -665,11 +638,7 @@ Simulation::Simulation(const Configuration& config):
         auto bbj = boxes_[j];
         bbj.pos_ = pbc_.minImage(boxes_[j].pos_ - boxes_[i].pos_);
         bbi.pos_ = 0.0;
-        auto clocks_now = rdtsc();
-        bool overlap = overlap::obb_overlap(bbi, box_shapes_[shape_id_i], bbj, box_shapes_[shape_id_j]);
-        overlap_clocks += rdtsc() - clocks_now;
-        ++n_overlap_calls;
-        if(overlap){
+        if(overlap::obb_overlap(bbi, box_shapes_[shape_id_i], bbj, box_shapes_[shape_id_j], obb_margin_)){
             nnl_[i].push_back(j);
             nnl_[j].push_back(i);
             auto event = get_collision_event(i, j);
@@ -723,17 +692,7 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
 
         output_condition(time_);
 
-        if(time_ >= end_time){
-            printf("-- Total Cycles --\n");
-            printf("Cross: %f\n", cross_clocks);
-            printf("Overlap: %f\n", overlap_clocks);
-            printf("-- Cycles per Call --\n");
-            printf("Cross: %f\n", cross_clocks / n_cross_calls);
-            printf("Overlap: %f\n", overlap_clocks / n_overlap_calls);
-            printf("--------\n");
-            printf("Ratio: %f\n", overlap_clocks / cross_clocks);
-            running = false;
-        }
+        if(time_ >= end_time) running = false;
 
         //Optimization: After we have collected enough events, we set the
         //maximum time for which to search for collisions to 1.5 times

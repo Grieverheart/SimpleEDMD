@@ -324,7 +324,7 @@ namespace clam{
             double q22 = v_[2] * v_[2];
             double q01 = v_[0] * v_[1];
             double q02 = v_[0] * v_[2];
-            double q12 = v_[0] * v_[2];
+            double q12 = v_[1] * v_[2];
             double q0w = v_[0] * w_;
             double q1w = v_[1] * w_;
             double q2w = v_[2] * w_;
