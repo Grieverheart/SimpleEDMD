@@ -1,13 +1,13 @@
 #include "overlap/obb.h"
-#include "Simulation.h"
 
-bool overlap::obb_overlap(const BoundingBox& box_a, const BBShape& shape_a, const BoundingBox& box_b, const BBShape& shape_b, double margin){
+bool overlap::obb_overlap(const BoundingBox& box_a, const shape::Box& shape_a, const BoundingBox& box_b, const shape::Box& shape_b, double margin){
     auto inv_rot = box_a.rot_.inv();
     auto pos = inv_rot.rotate(box_b.pos_);
     auto rot = inv_rot * box_b.rot_;
 
-    auto hsa = shape_a.half_size_ + margin;
-    auto hsb = shape_b.half_size_ + margin;
+    //TODO: Size
+    auto hsa = shape_a.extent() + margin;
+    auto hsb = shape_b.extent() + margin;
 
     double e[9];
     rot.to_matrix(e);

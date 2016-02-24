@@ -13,19 +13,11 @@
 #include "shape/variant_fwd.h"
 #include "serialization/archive.h"
 
-//Variant<OBB, Sphere>
-struct BBShape{
-    double out_radius(void)const{
-        return half_size_.length();
-    }
-    clam::Vec3d pos_;
-    clam::Vec3d half_size_;
-};
+namespace shape{
+    class Box;
+}
 
-struct BoundingBox{
-    clam::Vec3d pos_;
-    clam::Quatd rot_;
-};
+struct BoundingBox;
 
 class Simulation{
 public:
@@ -83,7 +75,7 @@ private:
     std::vector<shape::Variant*>& shapes_;
 
     //TODO: delete these
-    BBShape* box_shapes_;
+    shape::Box** box_shapes_;
     BoundingBox* boxes_;
     std::vector<size_t>* nnl_;
 

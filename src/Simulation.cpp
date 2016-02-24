@@ -9,6 +9,7 @@
 #include "overlap/obb.h"
 #include "serialization/common.h"
 #include "serialization/vector.h"
+#include "bounding_box.h"
 
 static void print_particle(const Particle& p){
     printf("pos: glm::vec3(%e, %e, %e)\n", p.pos[0], p.pos[1], p.pos[2]);
@@ -141,10 +142,10 @@ namespace{
         double& kinetic_delta_;
     };
 
-    class BoundingBoxVisitor: public boost::static_visitor<BBShape> {
+    class BoundingBoxVisitor: public boost::static_visitor<shape::Box> {
     public:
         template<typename T>
-        BBShape operator()(const T& shape)const{
+        shape::Box operator()(const T& shape)const{
             double max_x = shape.support(clam::Vec3d(1.0, 0.0, 0.0))[0];
             double min_x = shape.support(clam::Vec3d(-1.0, 0.0, 0.0))[0];
             double max_y = shape.support(clam::Vec3d(0.0, 1.0, 0.0))[1];
@@ -154,14 +155,11 @@ namespace{
             clam::Vec3d max_r = clam::Vec3d(max_x, max_y, max_z);
             clam::Vec3d min_r = clam::Vec3d(min_x, min_y, min_z);
 
-            return BBShape{
-                0.5 * (max_r + min_r),
-                0.5 * (max_r - min_r)
-            };
+            return shape::Box(max_r - min_r);
         }
     };
 
-    BBShape calc_bounding_box(const shape::Variant& shape){
+    shape::Box calc_bounding_box(const shape::Variant& shape){
         return boost::apply_visitor(BoundingBoxVisitor(), shape);
     }
 }
@@ -317,10 +315,10 @@ public:
         part.ang_vel = bbox_inv_rot.rotate(part.ang_vel);
         part.time    = 0.0;
 
-        clam::Vec3d half_size_ = sim_.box_shapes_[part.shape_id].half_size_;
+        //TODO: Size
+        clam::Vec3d half_size = sim_.box_shapes_[part.shape_id]->extent() + sim_.obb_margin_;
         double out_radius = part.size * shape_outradius(shape);
 
-        //TODO: Look into high iteration number!!!
         while(true){
             double max_advance = std::numeric_limits<double>::max();
             double distance = 0.0;
@@ -332,7 +330,7 @@ public:
                     auto dir = clam::Vec3d(0.0);
                     dir[i] = 1.0;
                     auto dir_p = inv_rot.rotate(dir);
-                    double dist = half_size_[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
+                    double dist = half_size[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
@@ -345,7 +343,7 @@ public:
                     auto dir = clam::Vec3d(0.0);
                     dir[i] = -1.0;
                     auto dir_p = inv_rot.rotate(dir);
-                    double dist = half_size_[i] + part.rot.rotate(shape.support(dir_p))[i] + part.pos[i];
+                    double dist = half_size[i] + part.rot.rotate(shape.support(dir_p))[i] + part.pos[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
@@ -366,7 +364,7 @@ public:
                     int idx = max_id / 2;
                     dir[idx] = 1.0 - 2.0 * (max_id % 2);
                     auto dir_p = part.rot.inv().rotate(dir);
-                    distance = half_size_[idx] - dir[idx] * (part.rot.rotate(shape.support(dir_p))[idx] + part.pos[idx]);
+                    distance = half_size[idx] - dir[idx] * (part.rot.rotate(shape.support(dir_p))[idx] + part.pos[idx]);
                 }
 
                 return ParticleEvent::CellCross(sim_.time_ + time, pid_, 0);
@@ -535,7 +533,7 @@ void Simulation::run_cell_cross_event(const ParticleEvent& event){
             auto bbb = boxes_[n];
             bbb.pos_ = pbc_.minImage(bbb.pos_ - bba.pos_);
             bba.pos_ = 0.0;
-            if(overlap::obb_overlap(bba, box_shapes_[shape_id_a], bbb, box_shapes_[shape_id_b], obb_margin_)){
+            if(overlap::obb_overlap(bba, *box_shapes_[shape_id_a], bbb, *box_shapes_[shape_id_b], obb_margin_)){
                 nnl_[pid].push_back(n);
                 nnl_[n].push_back(pid);
                 auto event = get_collision_event(pid, n);
@@ -587,8 +585,8 @@ Simulation::Simulation(const Configuration& config):
     n_collisions_.resize(n_part, 0);
 
     //Initialize obb shapes
-    box_shapes_ = new BBShape[shapes_.size()];
-    for(size_t i = 0; i < shapes_.size(); ++i) box_shapes_[i] = calc_bounding_box(*shapes_[i]);
+    box_shapes_ = new shape::Box*[shapes_.size()];
+    for(size_t i = 0; i < shapes_.size(); ++i) box_shapes_[i] = new shape::Box(calc_bounding_box(*shapes_[i]));
 
     boxes_ = new BoundingBox[n_part];
     double max_radius = 0.0;
@@ -615,7 +613,7 @@ Simulation::Simulation(const Configuration& config):
         boxes_[i].rot_ = particle.rot;
 
         //NOTE: Can cache radii for each shape
-        double outradius = particle.size * box_shapes_[particle.shape_id].out_radius();
+        double outradius = particle.size * box_shapes_[particle.shape_id]->out_radius();
         max_radius = std::max(max_radius, outradius);
     }
     sys_vel = sys_vel * (1.0 / n_part);
@@ -638,7 +636,7 @@ Simulation::Simulation(const Configuration& config):
         auto bbj = boxes_[j];
         bbj.pos_ = pbc_.minImage(boxes_[j].pos_ - boxes_[i].pos_);
         bbi.pos_ = 0.0;
-        if(overlap::obb_overlap(bbi, box_shapes_[shape_id_i], bbj, box_shapes_[shape_id_j], obb_margin_)){
+        if(overlap::obb_overlap(bbi, *box_shapes_[shape_id_i], bbj, *box_shapes_[shape_id_j], obb_margin_)){
             nnl_[i].push_back(j);
             nnl_[j].push_back(i);
             auto event = get_collision_event(i, j);

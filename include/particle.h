@@ -1,7 +1,6 @@
 #ifndef __PARTICLE_H
 #define __PARTICLE_H
 
-#include "serialization/archive.h"
 #include "clam.h"
 
 struct Particle{
