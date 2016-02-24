@@ -322,73 +322,70 @@ public:
 
     template<typename T>
     ParticleEvent operator()(const T& shape)const{
-        Particle part = sim_.particles_[pid_];
-        BoundingBox bbox = sim_.boxes_[pid_];
-        clam::Vec3d dist = sim_.pbc_.minImage(part.pos - bbox.pos_);
 
         double time(0.0);
 
+        BoundingBox bbox = sim_.boxes_[pid_];
         auto bbox_inv_rot = bbox.rot_.inv();
 
+        Particle part = sim_.particles_[pid_];
         stream_rotation(part, sim_.time_);
-        part.pos  = bbox_inv_rot.rotate(dist);
-        part.rot  = bbox_inv_rot * part.rot;
-        part.vel  = bbox_inv_rot.rotate(part.vel);
+        part.pos     = bbox_inv_rot.rotate(sim_.pbc_.minImage(part.pos - bbox.pos_));
+        part.rot     = bbox_inv_rot * part.rot;
+        part.vel     = bbox_inv_rot.rotate(part.vel);
         part.ang_vel = bbox_inv_rot.rotate(part.ang_vel);
-        part.time = 0.0;
+        part.time    = 0.0;
 
         clam::Vec3d half_size_ = sim_.box_shapes_[part.shape_id].half_size_;
         double out_radius = part.size * shape_outradius(shape);
 
         //TODO: Look into high iteration number!!!
         while(true){
-            double max_advance = 100000.0;
+            double max_advance = std::numeric_limits<double>::max();
             double distance = 0.0;
+            int max_id = 0;
+            auto inv_rot = part.rot.inv();
             for(int i = 0; i < 3; ++i){
-                auto dir = clam::Vec3d(0.0);
-                dir[i] = 1.0;
-                auto dir_p = part.rot.inv().rotate(dir);
-                double dist = half_size_[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
                 double max_vel = part.vel[i] + part.ang_vel.length() * out_radius;
                 if(max_vel > 0.0){
+                    auto dir = clam::Vec3d(0.0);
+                    dir[i] = 1.0;
+                    auto dir_p = inv_rot.rotate(dir);
+                    double dist = half_size_[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
                         max_advance = advance;
+                        max_id = 2 * i;
                     }
                 }
-                dist = half_size_[i] + part.rot.rotate(shape.support(-dir_p))[i] + part.pos[i];
                 max_vel = -part.vel[i] + part.ang_vel.length() * out_radius;
                 if(max_vel > 0.0){
+                    auto dir = clam::Vec3d(0.0);
+                    dir[i] = -1.0;
+                    auto dir_p = inv_rot.rotate(dir);
+                    double dist = half_size_[i] + part.rot.rotate(shape.support(dir_p))[i] + part.pos[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
                         max_advance = advance;
+                        max_id = 2 * i + 1;
                     }
                 }
             }
 
             if(distance < sim_.closest_distance_tol_){
-                int iter = 0;
-                //TODO: Advance backwards (max_advance)
                 while(distance < sim_.closest_distance_tol_){
                     time *= 0.999;
                     stream_position(part, time);
                     stream_rotation(part, time);
                     part.time = time;
 
-                    distance = 100000.0;
-                    for(int i = 0; i < 3; ++i){
-                        auto dir = clam::Vec3d(0.0);
-                        dir[i] = 1.0;
-                        auto dir_p = part.rot.inv().rotate(dir);
-                        double dist = half_size_[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
-                        if(dist < distance) distance = dist;
-                        dist = half_size_[i] + part.rot.rotate(shape.support(-dir_p))[i] + part.pos[i];
-                        if(dist < distance) distance = dist;
-                    }
-                    //NOTE: This should alsmost never happen.
-                    if(iter++ > 1000) return ParticleEvent::None();
+                    auto dir = clam::Vec3d(0.0);
+                    int idx = max_id / 2;
+                    dir[idx] = 1.0 - 2.0 * (max_id % 2);
+                    auto dir_p = part.rot.inv().rotate(dir);
+                    distance = half_size_[idx] - dir[idx] * (part.rot.rotate(shape.support(dir_p))[idx] + part.pos[idx]);
                 }
 
                 return ParticleEvent::CellCross(sim_.time_ + time, pid_, 0);
