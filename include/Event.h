@@ -8,7 +8,7 @@ enum ParticleEventType{
     PE_NONE               = 0,
     PE_COLLISION          = 1,
     PE_POSSIBLE_COLLISION = 2,
-    PE_CELLCROSS          = 3
+    PE_NEIGHBORHOOD_CROSS = 3
 };
 
 class ParticleEvent{
@@ -38,8 +38,8 @@ public:
         return event;
     }
 
-    static inline ParticleEvent CellCross(double time, int pid, int id){
-        return ParticleEvent(PE_CELLCROSS, time, pid, id);
+    static inline ParticleEvent NeighborhoodCross(double time, int pid, int id){
+        return ParticleEvent(PE_NEIGHBORHOOD_CROSS, time, pid, id);
     }
 
     int get_type(void){

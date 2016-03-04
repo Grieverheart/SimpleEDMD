@@ -367,7 +367,7 @@ public:
                     distance = half_size[idx] - dir[idx] * (part.xform.rot_.rotate(shape.support(dir_p))[idx] + part.xform.pos_[idx]);
                 }
 
-                return ParticleEvent::CellCross(sim_.time_ + time, pid_, 0);
+                return ParticleEvent::NeighborhoodCross(sim_.time_ + time, pid_, 0);
             }
 
             time += max_advance;
@@ -397,7 +397,7 @@ ParticleEvent Simulation::get_collision_event(int pA, int pB)const{
     );
 }
 
-ParticleEvent Simulation::get_cell_cross_event(int pid)const{
+ParticleEvent Simulation::get_neighborhood_cross_event(int pid)const{
     return boost::apply_visitor(ShapeBoxCrossEventVisitor(*this, pid), *shapes_[particles_[pid].shape_id]);
 }
 
@@ -481,8 +481,8 @@ void Simulation::run_collision_event(const ParticleEvent& event){
         }
     }
 
-    event_mgr_.push(pA, get_cell_cross_event(pA));
-    event_mgr_.push(pB, get_cell_cross_event(pB));
+    event_mgr_.push(pA, get_neighborhood_cross_event(pA));
+    event_mgr_.push(pB, get_neighborhood_cross_event(pB));
 
     event_mgr_.update(pA);
     event_mgr_.update(pB);
@@ -507,7 +507,7 @@ void Simulation::run_possible_collision_event(const ParticleEvent& event){
     event_mgr_.update(pA);
 }
 
-void Simulation::run_cell_cross_event(const ParticleEvent& event){
+void Simulation::run_neighborhood_cross_event(const ParticleEvent& event){
     int pid = event.pid_;
 
     for(int nb: nnl_[pid]){
@@ -540,7 +540,7 @@ void Simulation::run_cell_cross_event(const ParticleEvent& event){
             }
         }
     }
-    event_mgr_.push(pid, get_cell_cross_event(pid));
+    event_mgr_.push(pid, get_neighborhood_cross_event(pid));
     event_mgr_.update(pid);
 }
 
@@ -659,7 +659,7 @@ Simulation::Simulation(const Configuration& config):
     });
 
     for(size_t i = 0; i < n_part; ++i){
-        auto event = get_cell_cross_event(i);
+        auto event = get_neighborhood_cross_event(i);
         assert(event.get_type() != PE_NONE);
         event_mgr_.push(i, event);
     }
@@ -685,8 +685,8 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
         case PE_POSSIBLE_COLLISION:
             run_possible_collision_event(next_event);
             break;
-        case PE_CELLCROSS:
-            run_cell_cross_event(next_event);
+        case PE_NEIGHBORHOOD_CROSS:
+            run_neighborhood_cross_event(next_event);
             break;
         default:
             running = false;
@@ -750,6 +750,10 @@ void serialize(Archive& ar, const Simulation& sim){
     serialize(ar, sim.n_collision_events_);
     serialize(ar, sim.n_collisions_);
     serialize(ar, sim.config_);
+    //TODO: Serialize nnl
+    //serialize(ar, sim.box_shapes_, sim.shapes_.size());
+    //serialize(ar, sim.boxes_, sim.particles_.size());
+    //serialize(ar, sim.nnl_, sim.particles_.size());
     serialize(ar, sim.event_mgr_);
     serialize(ar, sim.cll_);
 }
@@ -770,4 +774,5 @@ void deserialize(Archive& ar, Simulation* sim){
     deserialize(ar, &sim->config_);
     deserialize(ar, &sim->event_mgr_);
     deserialize(ar, &sim->cll_);
+    //TODO: Deserialize nnl
 }

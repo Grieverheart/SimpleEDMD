@@ -44,9 +44,9 @@ public:
 
 private:
     ParticleEvent get_collision_event(int pA, int pB)const;
-    ParticleEvent get_cell_cross_event(int pid)const;
+    ParticleEvent get_neighborhood_cross_event(int pid)const;
     void run_collision_event(const ParticleEvent& event);
-    void run_cell_cross_event(const ParticleEvent& event);
+    void run_neighborhood_cross_event(const ParticleEvent& event);
     void run_possible_collision_event(const ParticleEvent& event);
 
 private:
