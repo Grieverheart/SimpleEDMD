@@ -9,13 +9,13 @@
 #include "overlap/obb.h"
 #include "serialization/common.h"
 #include "serialization/vector.h"
-#include "bounding_box.h"
+#include "transform.h"
 
 static void print_particle(const Particle& p){
-    printf("pos: glm::vec3(%e, %e, %e)\n", p.pos[0], p.pos[1], p.pos[2]);
+    printf("pos: glm::vec3(%e, %e, %e)\n", p.xform.pos_[0], p.xform.pos_[1], p.xform.pos_[2]);
     clam::Vec3d axis;
     double angle;
-    p.rot.toAxisAngle(angle, axis);
+    p.xform.rot_.toAxisAngle(angle, axis);
     printf("rot: %e, glm::vec3(%e, %e, %e)\n", angle, axis[0], axis[1], axis[2]);
     printf("vel: glm::vec3(%e, %e, %e)\n", p.vel[0], p.vel[1], p.vel[2]);
     printf("ang_vel: glm::vec3(%e, %e, %e)\n", p.ang_vel[0], p.ang_vel[1], p.ang_vel[2]);
@@ -47,7 +47,7 @@ namespace{
 
     //TODO: Move these to a utility file so they can be used by others.
     inline void stream_position(Particle& particle, double time){
-        particle.pos += particle.vel * (time - particle.time);
+        particle.xform.pos_ += particle.vel * (time - particle.time);
     }
 
     inline void stream_rotation(Particle& particle, double time){
@@ -56,7 +56,7 @@ namespace{
         if(l > 0.0){
             double sl, cl;
             sincos(l, &sl, &cl);
-            particle.rot = clam::Quatd(ha * (sl / l), cl) * particle.rot;
+            particle.xform.rot_ = clam::Quatd(ha * (sl / l), cl) * particle.xform.rot_;
         }
     }
 
@@ -64,7 +64,7 @@ namespace{
         if(particle.time < time){
             stream_position(particle, time);
             stream_rotation(particle, time);
-            particle.pos = pbc.apply(particle.pos);
+            particle.xform.pos_ = pbc.apply(particle.xform.pos_);
             particle.time = time;
         }
     }
@@ -83,11 +83,11 @@ namespace{
 
         template<typename T, typename U>
         bool operator()(const T& a, const U& b)const{
-            clam::Vec3d rel_pos = pbc_.minImage(pb_.pos - pa_.pos);
-            Particle temp_pa = pa_;
-            Particle temp_pb = pb_;
-            temp_pb.pos = rel_pos;
-            temp_pa.pos = 0.0;
+            clam::Vec3d rel_pos = pbc_.minImage(pb_.xform.pos_ - pa_.xform.pos_);
+            Transform temp_pa = pa_.xform;
+            Transform temp_pb = pb_.xform;
+            temp_pb.pos_ = rel_pos;
+            temp_pa.pos_ = 0.0;
 
             clam::Vec3d point_on_a, point_on_b;
             clam::Vec3d dist_vec = overlap::gjk_closest_points(temp_pa, a, temp_pb, b, point_on_a, point_on_b);
@@ -122,7 +122,7 @@ namespace{
         //Assume always resolved.
         //TODO: Handle momentum_transfer
         bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            clam::Vec3d rel_pos = pbc_.minImage(pa_.pos - pb_.pos);
+            clam::Vec3d rel_pos = pbc_.minImage(pa_.xform.pos_ - pb_.xform.pos_);
             double dist2 = rel_pos.length2();
 
             clam::Vec3d rel_vel = pa_.vel - pb_.vel;
@@ -174,8 +174,8 @@ public:
     ParticleEvent operator()(const T& a, const U& b)const{
         Particle partA = sim_.particles_[pa_idx_];
         Particle partB = sim_.particles_[pb_idx_];
-        clam::Vec3d dist = sim_.pbc_.minImage(partB.pos + partB.vel * (sim_.time_ - partB.time) - partA.pos);
-        double max_dist = max_overlap_distance(partA.size, *sim_.shapes_[partA.shape_id], partB.size, *sim_.shapes_[partB.shape_id]);
+        clam::Vec3d dist = sim_.pbc_.minImage(partB.xform.pos_ + partB.vel * (sim_.time_ - partB.time) - partA.xform.pos_);
+        double max_dist = max_overlap_distance(partA.xform.size_, *sim_.shapes_[partA.shape_id], partB.xform.size_, *sim_.shapes_[partB.shape_id]);
 
         if(dist.length() > max_dist + 2.0 * sim_.closest_distance_tol_){
             double time(0.0);
@@ -188,21 +188,21 @@ public:
             double time(0.0);
 
             stream_rotation(partB, sim_.time_);
-            partB.pos  = dist;
-            partB.vel  = partB.vel - partA.vel;
-            partB.time = 0.0;
+            partB.xform.pos_ = dist;
+            partB.vel        = partB.vel - partA.vel;
+            partB.time       = 0.0;
 
-            partA.pos  = 0.0;
-            partA.vel  = 0.0;
-            partA.time = 0.0;
+            partA.xform.pos_ = 0.0;
+            partA.vel        = 0.0;
+            partA.time       = 0.0;
 
             //TODO: Look into high iteration number!!!
             while(true){
-                clam::Vec3d shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
+                clam::Vec3d shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b, sim_.closest_distance_tol_);
 
                 double distance = shortest_dist.length();
                 if(distance == 0.0){
-                    shortest_dist = overlap::gjk_distance(partA, a, partB, b);
+                    shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b);
                     distance = shortest_dist.length();
                 }
                 clam::Vec3d shortest_dist_n = shortest_dist / distance;
@@ -219,17 +219,17 @@ public:
                 double max_vel = clam::dot(shortest_dist_n, partB.vel);
                 double abs_omega_A = partA.ang_vel.length();
                 if(abs_omega_A > 0.0){
-                    auto inv_rot_A = partA.rot.inv();
+                    auto inv_rot_A = partA.xform.rot_.inv();
                     clam::Vec3d c1  = inv_rot_A.rotate(clam::cross(partA.ang_vel, shortest_dist_n));
                     clam::Vec3d c1p = clam::cross(inv_rot_A.rotate(partA.ang_vel), c1) / abs_omega_A;
-                    max_vel += clam::dot(c1, partA.size * a.support(c1)) + clam::dot(c1p, partA.size * a.support(c1p));
+                    max_vel += clam::dot(c1, partA.xform.size_ * a.support(c1)) + clam::dot(c1p, partA.xform.size_ * a.support(c1p));
                 }
                 double abs_omega_B = partB.ang_vel.length();
                 if(abs_omega_B > 0.0){
-                    auto inv_rot_B = partB.rot.inv();
+                    auto inv_rot_B = partB.xform.rot_.inv();
                     clam::Vec3d c2  = inv_rot_B.rotate(clam::cross(partB.ang_vel, shortest_dist_n));
                     clam::Vec3d c2p = clam::cross(inv_rot_B.rotate(partB.ang_vel), c2) / abs_omega_B;
-                    max_vel += clam::dot(c2, partB.size * b.support(c2)) + clam::dot(c2p, partB.size * b.support(c2p));
+                    max_vel += clam::dot(c2, partB.xform.size_ * b.support(c2)) + clam::dot(c2p, partB.xform.size_ * b.support(c2p));
                 }
 
                 if(max_vel < 0.0) break;
@@ -245,7 +245,7 @@ public:
                         stream_rotation(partA, time);
                         partB.time = time;
                         partA.time = time;
-                        shortest_dist = overlap::gjk_distance(partA, a, partB, b, sim_.closest_distance_tol_);
+                        shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b, sim_.closest_distance_tol_);
                         //NOTE: This should alsmost never happen.
                         if(iter++ > 1000) return ParticleEvent::None();
                     }
@@ -276,12 +276,12 @@ public:
         const Particle& partA = sim_.particles_[pa_idx_];
         const Particle& partB = sim_.particles_[pb_idx_];
 
-        clam::Vec3d dist = sim_.pbc_.minImage(partB.pos + partB.vel * (sim_.time_ - partB.time) - partA.pos);
+        clam::Vec3d dist = sim_.pbc_.minImage(partB.xform.pos_ + partB.vel * (sim_.time_ - partB.time) - partA.xform.pos_);
         clam::Vec3d rel_vel = partA.vel - partB.vel;
 
         double time(0.0);
         clam::Vec3d normal;
-        if(overlap::sphere_raycast(partA.size * a.radius() + partB.size * b.radius() + sim_.closest_distance_tol_, dist, rel_vel, time, &normal)){
+        if(overlap::sphere_raycast(partA.xform.size_ * a.radius() + partB.xform.size_ * b.radius() + sim_.closest_distance_tol_, dist, rel_vel, time, &normal)){
             return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
         }
         else return ParticleEvent::None();
@@ -304,33 +304,33 @@ public:
 
         double time(0.0);
 
-        BoundingBox bbox = sim_.boxes_[pid_];
+        Transform bbox = sim_.boxes_[pid_];
         auto bbox_inv_rot = bbox.rot_.inv();
 
         Particle part = sim_.particles_[pid_];
         stream_rotation(part, sim_.time_);
-        part.pos     = bbox_inv_rot.rotate(sim_.pbc_.minImage(part.pos - bbox.pos_));
-        part.rot     = bbox_inv_rot * part.rot;
-        part.vel     = bbox_inv_rot.rotate(part.vel);
-        part.ang_vel = bbox_inv_rot.rotate(part.ang_vel);
-        part.time    = 0.0;
+        part.xform.pos_ = bbox_inv_rot.rotate(sim_.pbc_.minImage(part.xform.pos_ - bbox.pos_));
+        part.xform.rot_ = bbox_inv_rot * part.xform.rot_;
+        part.vel        = bbox_inv_rot.rotate(part.vel);
+        part.ang_vel    = bbox_inv_rot.rotate(part.ang_vel);
+        part.time       = 0.0;
 
         //TODO: Size
         clam::Vec3d half_size = sim_.box_shapes_[part.shape_id]->extent() + sim_.obb_margin_;
-        double out_radius = part.size * shape_outradius(shape);
+        double out_radius = part.xform.size_ * shape_outradius(shape);
 
         while(true){
             double max_advance = std::numeric_limits<double>::max();
             double distance = 0.0;
             int max_id = 0;
-            auto inv_rot = part.rot.inv();
+            auto inv_rot = part.xform.rot_.inv();
             for(int i = 0; i < 3; ++i){
                 double max_vel = part.vel[i] + part.ang_vel.length() * out_radius;
                 if(max_vel > 0.0){
                     auto dir = clam::Vec3d(0.0);
                     dir[i] = 1.0;
                     auto dir_p = inv_rot.rotate(dir);
-                    double dist = half_size[i] - part.rot.rotate(shape.support(dir_p))[i] - part.pos[i];
+                    double dist = half_size[i] - part.xform.rot_.rotate(shape.support(dir_p))[i] - part.xform.pos_[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
@@ -343,7 +343,7 @@ public:
                     auto dir = clam::Vec3d(0.0);
                     dir[i] = -1.0;
                     auto dir_p = inv_rot.rotate(dir);
-                    double dist = half_size[i] + part.rot.rotate(shape.support(dir_p))[i] + part.pos[i];
+                    double dist = half_size[i] + part.xform.rot_.rotate(shape.support(dir_p))[i] + part.xform.pos_[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
@@ -363,8 +363,8 @@ public:
                     auto dir = clam::Vec3d(0.0);
                     int idx = max_id / 2;
                     dir[idx] = 1.0 - 2.0 * (max_id % 2);
-                    auto dir_p = part.rot.inv().rotate(dir);
-                    distance = half_size[idx] - dir[idx] * (part.rot.rotate(shape.support(dir_p))[idx] + part.pos[idx]);
+                    auto dir_p = part.xform.rot_.inv().rotate(dir);
+                    distance = half_size[idx] - dir[idx] * (part.xform.rot_.rotate(shape.support(dir_p))[idx] + part.xform.pos_[idx]);
                 }
 
                 return ParticleEvent::CellCross(sim_.time_ + time, pid_, 0);
@@ -518,8 +518,7 @@ void Simulation::run_cell_cross_event(const ParticleEvent& event){
     nnl_[pid].clear();
 
     update_particle(particles_[pid], time_, pbc_);
-    boxes_[pid].pos_ = particles_[pid].pos;
-    boxes_[pid].rot_ = particles_[pid].rot;
+    boxes_[pid] = particles_[pid].xform;
 
     cll_.update(pid, boxes_[pid].pos_);
 
@@ -588,7 +587,7 @@ Simulation::Simulation(const Configuration& config):
     box_shapes_ = new shape::Box*[shapes_.size()];
     for(size_t i = 0; i < shapes_.size(); ++i) box_shapes_[i] = new shape::Box(calc_bounding_box(*shapes_[i]));
 
-    boxes_ = new BoundingBox[n_part];
+    boxes_ = new Transform[n_part];
     double max_radius = 0.0;
     //Initialize paricle velocities
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
@@ -608,12 +607,11 @@ Simulation::Simulation(const Configuration& config):
         sys_vel += vec;
         particle.vel = vec;
 
-        particle.pos = pbc_.apply(particle.pos + 0.1); //Make sure pbc are correct at start.
-        boxes_[i].pos_ = particle.pos;
-        boxes_[i].rot_ = particle.rot;
+        particle.xform.pos_ = pbc_.apply(particle.xform.pos_ + 0.1); //Make sure pbc are correct at start.
+        boxes_[i] = particle.xform;
 
         //NOTE: Can cache radii for each shape
-        double outradius = particle.size * box_shapes_[particle.shape_id]->out_radius();
+        double outradius = particle.xform.size_ * box_shapes_[particle.shape_id]->out_radius();
         max_radius = std::max(max_radius, outradius);
     }
     sys_vel = sys_vel * (1.0 / n_part);
@@ -623,7 +621,7 @@ Simulation::Simulation(const Configuration& config):
     for(size_t i = 0; i < n_part; ++i){
         particles_[i].vel -= sys_vel;
         base_kinetic_energy_ += 0.5 * particles_[i].vel.length2();
-        cll_.add(i, particles_[i].pos);
+        cll_.add(i, particles_[i].xform.pos_);
     }
 
     //Initialize nnl
@@ -644,11 +642,11 @@ Simulation::Simulation(const Configuration& config):
         }
 //Check for overlaps at start of simulation.
 #ifndef NDEBUG
-        Particle pa = particles_[i];
-        Particle pb = particles_[j];
-        pb.pos = pbc_.minImage(pb.pos - pa.pos);
-        pa.pos = 0.0;
-        assert(overlap::shape_overlap(pa, *shapes_[pa.shape_id], pb, *shapes_[pb.shape_id]) == false);
+        Transform ta = particles_[i].xform;
+        Transform tb = particles_[j].xform;
+        tb.pos_ = pbc_.minImage(tb.pos_ - ta.pos_);
+        ta.pos_ = 0.0;
+        assert(overlap::shape_overlap(ta, *shapes_[particles_[i].shape_id], tb, *shapes_[particles_[j].shape_id]) == false);
 #endif
         return false;
     });

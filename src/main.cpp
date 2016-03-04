@@ -9,7 +9,7 @@
 #include "serialization/archive.h"
 
 inline void stream_position(Particle& particle, double time){
-    particle.pos += particle.vel * (time - particle.time);
+    particle.xform.pos_ += particle.vel * (time - particle.time);
 }
 
 inline void stream_rotation(Particle& particle, double time){
@@ -18,7 +18,7 @@ inline void stream_rotation(Particle& particle, double time){
     if(l > 0.0){
         double sl, cl;
         sincos(l, &sl, &cl);
-        particle.rot = clam::Quatd(ha * (sl / l), cl) * particle.rot;
+        particle.xform.rot_ = clam::Quatd(ha * (sl / l), cl) * particle.xform.rot_;
     }
 }
 
@@ -26,7 +26,7 @@ inline void update_particle(Particle& particle, double time, const RectangularPB
     if(particle.time < time){
         stream_position(particle, time);
         stream_rotation(particle, time);
-        particle.pos = pbc.apply(particle.pos);
+        particle.xform.pos_ = pbc.apply(particle.xform.pos_);
         particle.time = time;
     }
 }
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]){
             double pf = packing_fraction(config);
             double scale = pow(pf / target_pf, 1.0 / 3.0);
             config.pbc_.setSize(scale * config.pbc_.getSize());
-            for(auto& particle: config.particles_) particle.pos = scale * particle.pos;
+            for(auto& particle: config.particles_) particle.xform.pos_ = scale * particle.xform.pos_;
         }
 
         sim = new Simulation(config);
@@ -120,8 +120,8 @@ int main(int argc, char *argv[]){
             for(size_t j = i + 1; j < config.particles_.size(); ++j){
                 Particle pa = config.particles_[i];
                 Particle pb = config.particles_[j];
-                pb.pos = config.pbc_.minImage(pb.pos - pa.pos);
-                pa.pos = 0.0;
+                pb.xform.pos_ = config.pbc_.minImage(pb.xform.pos_ - pa.xform.pos_);
+                pa.xform.pos_ = 0.0;
                 if(overlap::shape_overlap(pa, *config.shapes_[pa.shape_id], pb, *config.shapes_[pb.shape_id])){
                     printf("%lu, %lu\n", i, j);
                     overlaps = true;
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]){
         fclose(fp);
     });
 
-    sim->run(10.0, output);
+    sim->run(1.0, output);
 
     fclose(pressure_fp);
 

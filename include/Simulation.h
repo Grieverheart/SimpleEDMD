@@ -17,7 +17,7 @@ namespace shape{
     class Box;
 }
 
-struct BoundingBox;
+struct Transform;
 
 class Simulation{
 public:
@@ -76,7 +76,7 @@ private:
 
     //TODO: delete these
     shape::Box** box_shapes_;
-    BoundingBox* boxes_;
+    Transform* boxes_;
     std::vector<size_t>* nnl_;
 
     EventManager event_mgr_;

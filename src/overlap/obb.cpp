@@ -1,6 +1,6 @@
 #include "overlap/obb.h"
 
-bool overlap::obb_overlap(const BoundingBox& box_a, const shape::Box& shape_a, const BoundingBox& box_b, const shape::Box& shape_b, double margin){
+bool overlap::obb_overlap(const Transform& box_a, const shape::Box& shape_a, const Transform& box_b, const shape::Box& shape_b, double margin){
     auto inv_rot = box_a.rot_.inv();
     auto pos = inv_rot.rotate(box_b.pos_);
     auto rot = inv_rot * box_b.rot_;
