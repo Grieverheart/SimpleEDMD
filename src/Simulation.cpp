@@ -560,7 +560,7 @@ Simulation::Simulation(void):
 {}
 
 Simulation::~Simulation(void){
-    for(size_t i = 0; i < particles_.size(); ++i) delete box_shapes_[i];
+    for(size_t i = 0; i < shapes_.size(); ++i) delete box_shapes_[i];
     delete[] box_shapes_;
     delete[] boxes_;
     delete[] nnl_;
