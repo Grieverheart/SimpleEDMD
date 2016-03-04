@@ -559,6 +559,13 @@ Simulation::Simulation(void):
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {}
 
+Simulation::~Simulation(void){
+    for(size_t i = 0; i < particles_.size(); ++i) delete box_shapes_[i];
+    delete[] box_shapes_;
+    delete[] boxes_;
+    delete[] nnl_;
+}
+
 //TODO: Perhaps add exceptions to constructor
 Simulation::Simulation(const Configuration& config):
     time_(0.0),
