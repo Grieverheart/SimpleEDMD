@@ -8,7 +8,8 @@
 --Add simulation serialization.
 --Add simulation deserialization.
 --Implement different broadphase algorithms that might speed up simulations of very anisotropic particle shapes.
-Implement AABB tree.
+--Implement AABB tree.
+Implement hard walls.
 Improve simulation callback (PeriodicCallback).
 Find a boost.variant replacement or roll your own (move semantics would be nice).
 Consider using Cereal for (de)serialization.
@@ -17,4 +18,3 @@ Use relative time to improve numerical precision.
 Add more shapes.
 Implement Complex shapes.
 Make into library?
-Implement hard walls.

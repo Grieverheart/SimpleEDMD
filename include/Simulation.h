@@ -11,6 +11,7 @@
 #include "EventManager.h"
 #include "configuration.h"
 #include "shape/variant_fwd.h"
+#include "bounding_volume_variant_fwd.h"
 #include "serialization/archive.h"
 
 namespace shape{
