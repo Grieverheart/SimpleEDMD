@@ -6,8 +6,8 @@ bool overlap::obb_overlap(const Transform& box_a, const shape::Box& shape_a, con
     auto rot = inv_rot * box_b.rot_;
 
     //TODO: Size
-    auto hsa = shape_a.extent() + margin;
-    auto hsb = shape_b.extent() + margin;
+    auto hsa = box_a.size_ * shape_a.extent() + margin;
+    auto hsb = box_b.size_ * shape_b.extent() + margin;
 
     double e[9];
     rot.to_matrix(e);
