@@ -750,10 +750,12 @@ void serialize(Archive& ar, const Simulation& sim){
     serialize(ar, sim.n_collision_events_);
     serialize(ar, sim.n_collisions_);
     serialize(ar, sim.config_);
-    //TODO: Serialize nnl
-    //serialize(ar, sim.box_shapes_, sim.shapes_.size());
-    //serialize(ar, sim.boxes_, sim.particles_.size());
-    //serialize(ar, sim.nnl_, sim.particles_.size());
+
+    //TODO: Serialize box shapes; will do when we have a box shape variant.
+    //for(size_t i = 0; i < sim.shapes_.size(); ++i) serialize(ar, *sim.box_shapes_[i]);
+    serialize(ar, sim.boxes_, sim.particles_.size());
+    for(size_t i = 0; i < sim.particles_.size(); ++i) serialize(ar, sim.nnl_[i]);
+
     serialize(ar, sim.event_mgr_);
     serialize(ar, sim.cll_);
 }
@@ -772,6 +774,13 @@ void deserialize(Archive& ar, Simulation* sim){
     deserialize(ar, &sim->n_collision_events_);
     deserialize(ar, &sim->n_collisions_);
     deserialize(ar, &sim->config_);
+
+    //TODO: Deserialize box shapes; will do when we have a box shape variant.
+    //for(size_t i = 0; i < sim.shapes_.size(); ++i) serialize(ar, *sim.box_shapes_[i]);
+    deserialize(ar, &sim->boxes_, sim->particles_.size());
+    sim->nnl_ = new std::vector<size_t>[sim->particles_.size()];
+    for(size_t i = 0; i < sim->particles_.size(); ++i) deserialize(ar, &sim->nnl_[i]);
+
     deserialize(ar, &sim->event_mgr_);
     deserialize(ar, &sim->cll_);
     //TODO: Deserialize nnl
