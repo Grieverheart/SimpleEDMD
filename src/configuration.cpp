@@ -39,25 +39,6 @@ void deserialize(Archive& ar, Configuration* config){
     size_type shapes_size = 0;
     deserialize(ar, &shapes_size);
     config->shapes_.resize(shapes_size);
-
-    //TODO: Move to separate file.
-    for(auto& shape_ptr: config->shapes_){
-        int shape_type;
-        deserialize(ar, &shape_type);
-        switch(shape_type){
-            case shape::POLYHEDRON:{
-                shape::Polyhedron poly;
-                deserialize(ar, &poly);
-                shape_ptr = new shape::Variant(poly);
-            } break;
-            case shape::SPHERE:{
-                shape::Sphere sph;
-                deserialize(ar, &sph);
-                shape_ptr = new shape::Variant(sph);
-            } break;
-            //TODO: Implement panic handling.
-            default: break;
-        }
-    }
+    for(auto& shape_ptr: config->shapes_) deserialize(ar, shape_ptr);
     deserialize(ar, &config->pbc_);
 }
