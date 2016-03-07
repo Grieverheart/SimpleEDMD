@@ -1,6 +1,7 @@
 #include "overlap/bv_overlap.h"
 #include "bounding_volume_variant.h"
 #include "overlap/gjk.h"
+#include <algorithm>
 
 namespace overlap{
 
@@ -18,12 +19,29 @@ namespace overlap{
             pa_(pa), pb_(pb), feather_(feather)
         {}
 
-        //TODO: More efficient implementation. AABB vs Sphere.
-        //Also probably not strictly correct as it checks for overlap between
-        //rounded obb and sphere.
-        template<typename T, typename U>
-        bool operator()(const T& a, const U& b)const{
-            return gjk_boolean(pa_, a, pb_, b, 2.0 * feather_);
+        //NOTE: For now, we assume OBB max = -min.
+        bool operator()(const shape::Sphere& a, const shape::Box& b)const{
+            auto inv_rot = pb_.rot_.inv();
+            auto pos = -inv_rot.rotate(pb_.pos_);
+            auto extent = pb_.size_ * b.extent() + feather_;
+            clam::Vec3d closest(
+                std::min(std::max(pos[0], -extent[0]), extent[0]),
+                std::min(std::max(pos[1], -extent[1]), extent[1]),
+                std::min(std::max(pos[2], -extent[2]), extent[2])
+            );
+            return (closest - pos).length2() < sqr(pa_.size_ * a.radius() + feather_);
+        }
+
+        //NOTE: For now, we assume OBB max = -min.
+        bool operator()(const shape::Box& a, const shape::Sphere& b)const{
+            auto pos = pb_.pos_;
+            auto extent = pa_.size_ * a.extent() + feather_;
+            clam::Vec3d closest(
+                std::min(std::max(pos[0], -extent[0]), extent[0]),
+                std::min(std::max(pos[1], -extent[1]), extent[1]),
+                std::min(std::max(pos[2], -extent[2]), extent[2])
+            );
+            return (closest - pos).length2() < sqr(pb_.size_ * b.radius() + feather_);
         }
 
         bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
