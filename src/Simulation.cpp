@@ -12,6 +12,8 @@
 #include "serialization/vector.h"
 #include "transform.h"
 
+#define _UNUSED(x) ((void)(x))
+
 static void print_particle(const Particle& p){
     printf("pos: glm::vec3(%e, %e, %e)\n", p.xform.pos_[0], p.xform.pos_[1], p.xform.pos_[2]);
     clam::Vec3d axis;
@@ -386,9 +388,18 @@ public:
         return ParticleEvent::None();
     }
 
-    //TODO: Implement
     ParticleEvent operator()(const shape::Sphere& a)const{
-        return ParticleEvent::None();
+        Particle part = sim_.particles_[pid_];
+
+        clam::Vec3d rel_vel = -part.vel;
+        clam::Vec3d dist    = sim_.pbc_.minImage(part.xform.pos_ - sim_.boxes_[pid_].pos_);
+
+        double time(0.0);
+        bool found = overlap::sphere_raycast_full(sim_.obb_margin_, dist, rel_vel, time);
+        assert(found);
+        _UNUSED(found);
+
+        return ParticleEvent::NeighborhoodCross(sim_.time_ + time, pid_, 0);
     }
 
 private:

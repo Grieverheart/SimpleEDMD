@@ -9,6 +9,7 @@
 [X] Add simulation deserialization.
 [X] Implement different broadphase algorithms that might speed up simulations of very anisotropic particle shapes.
 [X] Implement AABB tree.
+[ ] Deserialize box shapes.
 [ ] Make sure spheres are working again.
 [ ] Make sure asymetric particles are working.
 [ ] Make sure mixtures of different particle shapes are working.

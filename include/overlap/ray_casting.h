@@ -2,13 +2,35 @@
 #define EDMD_OVERLAP_RAY_CASTING_H
 
 namespace overlap{
-    //NOTE: Assume normalized ray direction
+    //NOTE: Assume normalized ray direction.
+    //If spheres are penetrating, returns false.
     inline bool sphere_raycast(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t, clam::Vec3d* normal = nullptr){
         double s  = dot(pos, dir);
         double l2 = dot(pos, pos);
         double r2 = radius * radius;
 
         if(s < 0.0/* && l2 > r2*/) return false;
+
+        double idnorm = 1.0 / dir.length();
+        s *= idnorm;
+        double m2 = l2 - s * s;
+        if(m2 > r2) return false;
+
+        if(l2 > r2) t = (s - sqrt(r2 - m2)) * idnorm;
+        else t = (s + sqrt(r2 - m2)) * idnorm;
+
+        if(normal) *normal = (t * dir - pos) / radius;
+
+        return true;
+    }
+
+    //NOTE: Assume normalized ray direction
+    inline bool sphere_raycast_full(double radius, const clam::Vec3d& pos, const clam::Vec3d& dir, double& t, clam::Vec3d* normal = nullptr){
+        double s  = dot(pos, dir);
+        double l2 = dot(pos, pos);
+        double r2 = radius * radius;
+
+        if(s < 0.0 && l2 > r2) return false;
 
         double idnorm = 1.0 / dir.length();
         s *= idnorm;
