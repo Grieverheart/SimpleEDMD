@@ -1,22 +1,19 @@
 #include "overlap/obb.h"
 
 bool overlap::obb_overlap(const Transform& box_a, const shape::Box& shape_a, const Transform& box_b, const shape::Box& shape_b, double margin){
-    auto inv_rot = box_a.rot_.inv();
-    auto pos = inv_rot.rotate(box_b.pos_);
-    auto rot = inv_rot * box_b.rot_;
-
-    //TODO: Size
     auto hsa = box_a.size_ * shape_a.extent() + margin;
     auto hsb = box_b.size_ * shape_b.extent() + margin;
 
     double e[9];
-    rot.to_matrix(e);
+    box_b.rot_.to_matrix(e);
 
     double a[9] = {
         fabs(e[0]), fabs(e[3]), fabs(e[6]),
         fabs(e[1]), fabs(e[4]), fabs(e[7]),
         fabs(e[2]), fabs(e[5]), fabs(e[8])
     };
+
+    const auto& pos = box_b.pos_;
 
     if(   (fabs(pos[0]) > hsa[0] + a[0] * hsb[0] + a[1] * hsb[1] + a[2] * hsb[2])
        || (fabs(pos[1]) > hsa[1] + a[3] * hsb[0] + a[4] * hsb[1] + a[5] * hsb[2])

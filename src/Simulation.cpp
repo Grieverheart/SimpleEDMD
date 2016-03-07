@@ -524,14 +524,18 @@ void Simulation::run_neighborhood_cross_event(const ParticleEvent& event){
 
     auto shape_id_a = particles_[pid].shape_id;
 
+    auto bba = boxes_[pid];
+    auto inv_rot = bba.rot_.inv();
+
     for(int cid: cll_.cell_nbs(cll_.cell_index(pid))){
         for(int n: cll_.cell_content(cid)){
             if(n == pid) continue;
             auto shape_id_b = particles_[n].shape_id;
-            auto bba = boxes_[pid];
             auto bbb = boxes_[n];
-            bbb.pos_ = pbc_.minImage(bbb.pos_ - bba.pos_);
-            bba.pos_ = 0.0;
+
+            bbb.pos_ = inv_rot.rotate(pbc_.minImage(bbb.pos_ - bba.pos_));
+            bbb.rot_ = inv_rot * bbb.rot_;
+
             if(overlap::obb_overlap(bba, *box_shapes_[shape_id_a], bbb, *box_shapes_[shape_id_b], obb_margin_)){
                 nnl_[pid].push_back(n);
                 nnl_[n].push_back(pid);
@@ -639,8 +643,11 @@ Simulation::Simulation(const Configuration& config):
         auto shape_id_j = particles_[j].shape_id;
         auto bbi = boxes_[i];
         auto bbj = boxes_[j];
-        bbj.pos_ = pbc_.minImage(boxes_[j].pos_ - boxes_[i].pos_);
-        bbi.pos_ = 0.0;
+
+        auto inv_rot = bbi.rot_.inv();
+        bbj.pos_ = inv_rot.rotate(pbc_.minImage(boxes_[j].pos_ - boxes_[i].pos_));
+        bbj.rot_ = inv_rot * bbj.rot_;
+
         if(overlap::obb_overlap(bbi, *box_shapes_[shape_id_i], bbj, *box_shapes_[shape_id_j], obb_margin_)){
             nnl_[i].push_back(j);
             nnl_[j].push_back(i);
