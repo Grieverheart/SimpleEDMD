@@ -79,7 +79,7 @@ private:
     //NOTE: We could make this into a separate class
     //but not sure how to handle shape_id without
     //duplicating data.
-    shape::Box** box_shapes_;
+    bounding_volume::Variant** box_shapes_;
     Transform* boxes_;
     std::vector<size_t>* nnl_;
 

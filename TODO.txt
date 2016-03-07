@@ -1,20 +1,24 @@
---Implement parallel polyhedra.
---Implement rotating polyhedra.
---Implement conservative advancement.
---Implement closest points function.
---Implement collision resolution.
---Implement xml io.
---Add simulation statics reset function.
---Add simulation serialization.
---Add simulation deserialization.
---Implement different broadphase algorithms that might speed up simulations of very anisotropic particle shapes.
---Implement AABB tree.
-Implement hard walls.
-Improve simulation callback (PeriodicCallback).
-Find a boost.variant replacement or roll your own (move semantics would be nice).
-Consider using Cereal for (de)serialization.
-Try implementing TOI using SAT for polyhedra, and compare performance.
-Use relative time to improve numerical precision.
-Add more shapes.
-Implement Complex shapes.
-Make into library?
+[X] Implement parallel polyhedra.
+[X] Implement rotating polyhedra.
+[X] Implement conservative advancement.
+[X] Implement closest points function.
+[X] Implement collision resolution.
+[X] Implement xml io.
+[X] Add simulation statics reset function.
+[X] Add simulation serialization.
+[X] Add simulation deserialization.
+[X] Implement different broadphase algorithms that might speed up simulations of very anisotropic particle shapes.
+[X] Implement AABB tree.
+[ ] Make sure spheres are working again.
+[ ] Make sure asymetric particles are working.
+[ ] Make sure mixtures of different particle shapes are working.
+[ ] Make sure particles with different sizes are working.
+[ ] Implement hard walls.
+[ ] Improve simulation callback (PeriodicCallback).
+[ ] Find a boost.variant replacement or roll your own (move semantics would be nice).
+[ ] Consider using Cereal for (de)serialization.
+[ ] Try implementing TOI using SAT for polyhedra, and compare performance.
+[ ] Use relative time to improve numerical precision.
+[ ] Add more shapes.
+[ ] Implement Complex shapes.
+[ ] Make into library?
