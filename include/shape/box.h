@@ -8,6 +8,8 @@ namespace shape{
 
     class Box: public Convex{
     public:
+        Box(void){}
+
         Box(const clam::Vec3d& dims);
 
         double in_radius(void)const{
@@ -22,6 +24,9 @@ namespace shape{
         clam::Vec3d extent(void)const{
             return extent_;
         }
+
+        friend void serialize(Archive& ar, const Box&);
+        friend void deserialize(Archive& ar, Box*);
 
         clam::Vec3d support(const clam::Vec3d&)const;
     private:
