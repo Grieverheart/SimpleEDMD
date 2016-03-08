@@ -148,7 +148,7 @@ namespace{
 
     class BoundingBoxVisitor: public boost::static_visitor<bounding_volume::Variant> {
     public:
-        //NOTE: Not correct for asymetric particles. We need both min and max to describe
+        //TODO: Not correct for asymmetric particles. We need both min and max to describe
         //a tight obb. Perhaps we should make shape::Box take min, max instead.
         template<typename T>
         bounding_volume::Variant operator()(const T& shape)const{
@@ -225,7 +225,8 @@ public:
 
 
                 /* Conservative advancement, tighter bound using support functions. */
-                //NOTE: Most probably is only correct for point symmetric particle shapes.
+                //TODO: Most probably is only correct for point symmetric particle shapes.
+                //For asymmetric particles, we need max(dot(c1, a.support(c1)), dot(-c1, a.support(-c1))) etc.
                 double max_vel = clam::dot(shortest_dist_n, partB.vel);
                 double abs_omega_A = partA.ang_vel.length();
                 if(abs_omega_A > 0.0){
