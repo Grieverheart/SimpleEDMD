@@ -60,6 +60,10 @@ void print_particle(FILE* fp, const Particle& particle, bool should_print_shape_
     fprintf(fp, "<x>%lf</x><y>%lf</y><z>%lf</z><w>%lf</w>\n", particle.xform.rot_[0], particle.xform.rot_[1], particle.xform.rot_[2], particle.xform.rot_[3]);
     fprintf(fp, "</quat>\n");
 
+    if(particle.xform.size_ != 1.0){
+        fprintf(fp, "<size>%f</size>\n", particle.xform.size_);
+    }
+
     if(should_print_shape_id) fprintf(fp, "<shape id=\"%lu\"/>\n", particle.shape_id);
 
     fprintf(fp, "</particle>\n");

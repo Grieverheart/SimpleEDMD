@@ -339,7 +339,7 @@ public:
                     auto dir = clam::Vec3d(0.0);
                     dir[i] = 1.0;
                     auto dir_p = inv_rot.rotate(dir);
-                    double dist = half_size[i] - part.xform.rot_.rotate(shape.support(dir_p))[i] - part.xform.pos_[i];
+                    double dist = half_size[i] - part.xform.size_ * part.xform.rot_.rotate(shape.support(dir_p))[i] - part.xform.pos_[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
@@ -352,7 +352,7 @@ public:
                     auto dir = clam::Vec3d(0.0);
                     dir[i] = -1.0;
                     auto dir_p = inv_rot.rotate(dir);
-                    double dist = half_size[i] + part.xform.rot_.rotate(shape.support(dir_p))[i] + part.xform.pos_[i];
+                    double dist = half_size[i] + part.xform.size_ * part.xform.rot_.rotate(shape.support(dir_p))[i] + part.xform.pos_[i];
                     double advance = dist / max_vel;
                     if(advance < max_advance){
                         distance = dist;
@@ -373,7 +373,7 @@ public:
                     int idx = max_id / 2;
                     dir[idx] = 1.0 - 2.0 * (max_id % 2);
                     auto dir_p = part.xform.rot_.inv().rotate(dir);
-                    distance = half_size[idx] - dir[idx] * (part.xform.rot_.rotate(shape.support(dir_p))[idx] + part.xform.pos_[idx]);
+                    distance = half_size[idx] - dir[idx] * (part.xform.size_ * part.xform.rot_.rotate(shape.support(dir_p))[idx] + part.xform.pos_[idx]);
                 }
 
                 return ParticleEvent::NeighborhoodCross(sim_.time_ + time, pid_, 0);

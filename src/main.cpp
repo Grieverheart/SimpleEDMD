@@ -128,7 +128,7 @@ int main(int argc, char *argv[]){
                 Particle pb = config.particles_[j];
                 pb.xform.pos_ = config.pbc_.minImage(pb.xform.pos_ - pa.xform.pos_);
                 pa.xform.pos_ = 0.0;
-                if(overlap::shape_overlap(pa, *config.shapes_[pa.shape_id], pb, *config.shapes_[pb.shape_id])){
+                if(overlap::shape_overlap(pa.xform, *config.shapes_[pa.shape_id], pb.xform, *config.shapes_[pb.shape_id])){
                     printf("%lu, %lu\n", i, j);
                     overlaps = true;
                 }
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]){
         fclose(fp);
     });
 
-    sim->run(1.0, output);
+    sim->run(10.0, output);
 
     fclose(pressure_fp);
 
