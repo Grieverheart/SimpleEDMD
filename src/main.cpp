@@ -7,6 +7,7 @@
 #include "io/config_xml.h"
 #include "overlap/overlap.h"
 #include "serialization/archive.h"
+#include <boost/variant/polymorphic_get.hpp>
 
 inline void stream_position(Particle& particle, double time){
     particle.xform.pos_ += particle.vel * (time - particle.time);
@@ -35,8 +36,13 @@ double packing_fraction(const Configuration& config){
     auto box_size = config.pbc_.getSize();
     double volume = box_size[0] * box_size[1] * box_size[2];
 
+    double particle_volume = 0.0;
+    for(auto p: config.particles_){
+        particle_volume += pow(p.xform.size_, 3.0) * boost::polymorphic_get<shape::Convex>(config.shapes_[p.shape_id])->volume();
+    }
+
     //NOTE: Assume particle unit volume!
-    return config.particles_.size() / volume;
+    return particle_volume / volume;
 }
 
 //TODO: Add function to reset simulation statistics (av_momentum_transfer).

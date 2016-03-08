@@ -13,6 +13,8 @@ namespace overlap{
         }
     }
 
+    //IMPORTANT: Assumes A sits unrotated at the origin, and B's
+    //transform is described with respect to A.
     class BoundingVolumeOverlapVisitor: public boost::static_visitor<bool> {
     public:
         BoundingVolumeOverlapVisitor(const Transform& pa, const Transform& pb, double feather):
@@ -45,7 +47,7 @@ namespace overlap{
         }
 
         bool operator()(const shape::Sphere& a, const shape::Sphere& b)const{
-            return (pb_.pos_ - pa_.pos_).length2() < sqr(pa_.size_ * a.radius() + pb_.size_ * b.radius() + 2.0 * feather_);
+            return pb_.pos_.length2() < sqr(pa_.size_ * a.radius() + pb_.size_ * b.radius() + 2.0 * feather_);
         }
 
         bool operator()(const shape::Box& ba, const shape::Box& bb)const{
