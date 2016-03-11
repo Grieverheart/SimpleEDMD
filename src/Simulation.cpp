@@ -85,6 +85,7 @@ namespace{
             kinetic_delta_(kinetic_delta)
         {}
 
+        //TODO: For spheres we don't need to update angular velocity.
         template<typename T, typename U>
         bool operator()(const T& a, const U& b)const{
             clam::Vec3d rel_pos = pbc_.minImage(pb_.xform.pos_ - pa_.xform.pos_);
@@ -210,7 +211,6 @@ public:
             partA.vel        = 0.0;
             partA.time       = 0.0;
 
-            //TODO: Look into high iteration number!!!
             while(true){
                 clam::Vec3d shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b, sim_.closest_distance_tol_);
 
@@ -222,8 +222,8 @@ public:
                 clam::Vec3d shortest_dist_n = shortest_dist / distance;
 
                 /* Conservative advancement by Mirtich 1996 PhD Thesis */
-                //double out_radius_A = partA.size * shape_outradius(a);
-                //double out_radius_B = partB.size * shape_outradius(b);
+                //double out_radius_A = partA.xform.size_ * shape_outradius(a);
+                //double out_radius_B = partB.xform.size_ * shape_outradius(b);
                 //double max_vel = clam::dot(shortest_dist_n, partB.vel) +
                 //                 partA.ang_vel.length() * out_radius_A + partB.ang_vel.length() * out_radius_B;
 
@@ -643,7 +643,7 @@ Simulation::Simulation(const Configuration& config):
         boxes_[i] = particle.xform;
 
         //NOTE: Can cache radii for each shape
-        double outradius = particle.xform.size_ * bv_outradius(*box_shapes_[particle.shape_id]);
+        double outradius = particle.xform.size_ * bv_outradius(*box_shapes_[particle.shape_id]) + obb_margin_;
         max_radius = std::max(max_radius, outradius);
     }
     sys_vel = sys_vel * (1.0 / n_part);
@@ -809,5 +809,4 @@ void deserialize(Archive& ar, Simulation* sim){
 
     deserialize(ar, &sim->event_mgr_);
     deserialize(ar, &sim->cll_);
-    //TODO: Deserialize nnl
 }

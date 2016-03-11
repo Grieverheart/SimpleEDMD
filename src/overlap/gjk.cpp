@@ -625,7 +625,7 @@ namespace overlap{
         auto inv_rot_a = pa.rot_.inv();
         auto inv_rot_b = pb.rot_.inv();
 
-        while(fail_safe++ < 20){
+        while(fail_safe++ < 100){
             auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b + ((feather > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
@@ -641,7 +641,7 @@ namespace overlap{
             if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
         }
 
-        //printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
+        printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         return 0.0;
     }
 
@@ -660,7 +660,7 @@ namespace overlap{
         auto inv_rot_a = pa.rot_.inv();
         auto inv_rot_b = pb.rot_.inv();
 
-        while(fail_safe++ < 20){
+        while(fail_safe++ < 100){
             auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b;
@@ -680,7 +680,7 @@ namespace overlap{
             if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
         }
 
-        //printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
+        printf("Encountered error in GJK closest points: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         return 0.0;
     }
 
@@ -763,7 +763,7 @@ namespace overlap{
         }
         distance = lambda;
         normal = dir / dir.length();
-        ///printf("Encountered error in GJK raycast: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
+        printf("Encountered error in GJK raycast: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         //auto test = pb.pos_ - pa.pos_;
         //for(int i = 0; i < n_ls; ++i) printf("%f, %f, %f\n", lambdas[i][0], lambdas[i][1], lambdas[i][2]);
         //printf("Encountered error in GJK raycast: Infinite Loop.\n Direction (%f, %f, %f)\n", test[0], test[1], test[2]);
