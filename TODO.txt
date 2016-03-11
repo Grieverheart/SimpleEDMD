@@ -12,7 +12,7 @@
 [X] De-serialize box shapes.
 [X] Make sure spheres are working again.
 [X] Make sure particles with different sizes are working.
-[ ] Make sure asymmetric particles are working.
+[X] Make sure asymmetric particles are working.
 [ ] Make sure mixtures of different particle shapes are working.
 [ ] Implement hard walls.
 [ ] Improve simulation callback (PeriodicCallback).

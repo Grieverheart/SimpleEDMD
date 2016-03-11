@@ -148,8 +148,6 @@ namespace{
 
     class BoundingBoxVisitor: public boost::static_visitor<bounding_volume::Variant> {
     public:
-        //TODO: Not correct for asymmetric particles. We need both min and max to describe
-        //a tight obb. Perhaps we should make shape::Box take min, max instead.
         template<typename T>
         bounding_volume::Variant operator()(const T& shape)const{
             double max_x = shape.support(clam::Vec3d(1.0, 0.0, 0.0))[0];
@@ -160,8 +158,14 @@ namespace{
             double min_z = shape.support(clam::Vec3d(0.0, 0.0, -1.0))[2];
             clam::Vec3d max_r = clam::Vec3d(max_x, max_y, max_z);
             clam::Vec3d min_r = clam::Vec3d(min_x, min_y, min_z);
+            clam::Vec3d box_size(
+            );
 
-            return bounding_volume::Variant(shape::Box(max_r - min_r));
+            return bounding_volume::Variant(shape::Box(clam::Vec3d(
+                2.0 * std::max(fabs(min_r[0]), fabs(max_r[0])),
+                2.0 * std::max(fabs(min_r[1]), fabs(max_r[1])),
+                2.0 * std::max(fabs(min_r[2]), fabs(max_r[2]))
+            )));
         }
 
         bounding_volume::Variant operator()(const shape::Sphere& sphere)const{
@@ -225,8 +229,6 @@ public:
 
 
                 /* Conservative advancement, tighter bound using support functions. */
-                //TODO: Most probably is only correct for point symmetric particle shapes.
-                //For asymmetric particles, we need max(dot(c1, a.support(c1)), dot(-c1, a.support(-c1))) etc.
                 double max_vel = clam::dot(shortest_dist_n, partB.vel);
                 double abs_omega_A = partA.ang_vel.length();
                 if(abs_omega_A > 0.0){
