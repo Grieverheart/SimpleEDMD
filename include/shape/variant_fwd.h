@@ -7,19 +7,17 @@
 //recompiling the library.
 
 #include <boost/variant/variant_fwd.hpp>
+#include <type_traits>
 
 namespace shape{
 
     class Polyhedron;
     class Sphere;
+    class Box;
+    class Cone;
+    class Cylinder;
 
-    enum eShapeTypes{
-        POLYHEDRON = 0,
-        SPHERE     = 1,
-        N_SHAPE_TYPES
-    };
-
-    using Variant = boost::variant<Polyhedron, Sphere>;
+    using Variant = boost::variant<Polyhedron, Sphere, Box, Cone, Cylinder>;
 }
 
 #endif

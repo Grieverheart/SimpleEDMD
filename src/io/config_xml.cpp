@@ -41,6 +41,31 @@ public:
         ret += "</shape>\n";
         return ret;
     }
+
+    std::string operator()(const shape::Box& box)const{
+        std::string ret("<shape type=\"box\">\n");
+        ret += "<x>" + std::to_string(2.0 * box.extent()[0]) + "</x>";
+        ret += "<y>" + std::to_string(2.0 * box.extent()[1]) + "</y>";
+        ret += "<z>" + std::to_string(2.0 * box.extent()[2]) + "</z>\n";
+        ret += "</shape>\n";
+        return ret;
+    }
+
+    std::string operator()(const shape::Cone& cone)const{
+        std::string ret("<shape type=\"cone\">\n");
+        ret += "<base_radius>" + std::to_string(cone.base_radius()) + "</base_radius>\n";
+        ret += "<height>" + std::to_string(cone.height()) + "</height>\n";
+        ret += "</shape>\n";
+        return ret;
+    }
+
+    std::string operator()(const shape::Cylinder& cyl)const{
+        std::string ret("<shape type=\"cylinder\">\n");
+        ret += "<base_radius>" + std::to_string(cyl.base_radius()) + "</base_radius>\n";
+        ret += "<height>" + std::to_string(cyl.height()) + "</height>\n";
+        ret += "</shape>\n";
+        return ret;
+    }
 };
 
 void print_shape(FILE* fp, const shape::Variant& shape){
@@ -185,8 +210,26 @@ bool xml_load_config(const char* filename, Configuration& config){
                 config.shapes_.push_back(new shape::Variant(shape::Polyhedron(vertices, faces)));
             }
             else if(shape->Attribute("type", "sphere")){
-                //TODO: Should we handle radius? Maybe not, since particle already has a size attribute.
                 config.shapes_.push_back(new shape::Variant(shape::Sphere()));
+            }
+            else if(shape->Attribute("type", "box")){
+                clam::Vec3d size(0.0);
+                shape->FirstChildElement("x")->QueryDoubleText(&size[0]);
+                shape->FirstChildElement("y")->QueryDoubleText(&size[1]);
+                shape->FirstChildElement("z")->QueryDoubleText(&size[2]);
+                config.shapes_.push_back(new shape::Variant(shape::Box(size)));
+            }
+            else if(shape->Attribute("type", "cone")){
+                double base_radius, height;
+                shape->FirstChildElement("base_radius")->QueryDoubleText(&base_radius);
+                shape->FirstChildElement("height")->QueryDoubleText(&height);
+                config.shapes_.push_back(new shape::Variant(shape::Cone(base_radius, height)));
+            }
+            else if(shape->Attribute("type", "cylinder")){
+                double base_radius, height;
+                shape->FirstChildElement("base_radius")->QueryDoubleText(&base_radius);
+                shape->FirstChildElement("height")->QueryDoubleText(&height);
+                config.shapes_.push_back(new shape::Variant(shape::Cylinder(base_radius, height)));
             }
             else{
                 printf("Unknown shape type: %s.\n", shape->Attribute("type"));

@@ -9,16 +9,11 @@ namespace{
             ar_(ar)
         {}
 
-        void operator()(const shape::Polyhedron& poly)const{
-            int shape_type = shape::POLYHEDRON;
+        template<typename T>
+        void operator()(const T& shape)const{
+            int shape_type = shape::index<T>::value;
             ar_.write(&shape_type, sizeof(shape_type));
-            serialize(ar_, poly);
-        }
-
-        void operator()(const shape::Sphere& sph)const{
-            int shape_type = shape::SPHERE;
-            ar_.write(&shape_type, sizeof(shape_type));
-            serialize(ar_, sph);
+            serialize(ar_, shape);
         }
 
     private:
@@ -33,16 +28,32 @@ void serialize(Archive& ar, const shape::Variant& shape){
 void deserialize(Archive& ar, shape::Variant* shape_ptr){
     int shape_type;
     deserialize(ar, &shape_type);
+    //TODO: Is there a better way to do this?
     switch(shape_type){
-        case shape::POLYHEDRON:{
+        case shape::index<shape::Polyhedron>::value:{
             shape::Polyhedron poly;
             deserialize(ar, &poly);
             shape_ptr = new shape::Variant(poly);
         } break;
-        case shape::SPHERE:{
+        case shape::index<shape::Sphere>::value:{
             shape::Sphere sph;
             deserialize(ar, &sph);
             shape_ptr = new shape::Variant(sph);
+        } break;
+        case shape::index<shape::Box>::value:{
+            shape::Box box;
+            deserialize(ar, &box);
+            shape_ptr = new shape::Variant(box);
+        } break;
+        case shape::index<shape::Cone>::value:{
+            shape::Cone cone;
+            deserialize(ar, &cone);
+            shape_ptr = new shape::Variant(cone);
+        } break;
+        case shape::index<shape::Cylinder>::value:{
+            shape::Cylinder cyl;
+            deserialize(ar, &cyl);
+            shape_ptr = new shape::Variant(cyl);
         } break;
         //TODO: Implement panic handling.
         default: break;

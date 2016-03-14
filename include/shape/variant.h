@@ -7,10 +7,38 @@
 
 //NOTE: Boost Variant does not implement move semantics.
 
+namespace shape{
+    namespace detail{
+        template<int idx, typename T, typename... ArgsT>
+        struct type_index_helper;
+
+        template<int idx, typename T>
+        struct type_index_helper<idx, T>{
+            static constexpr int value = -1;
+        };
+
+        template<int idx, typename T, typename A, typename... ArgsT>
+        struct type_index_helper<idx, T, A, ArgsT...>{
+            static constexpr int value = (std::is_same<T, A>::value)? idx: type_index_helper<idx + 1, T, ArgsT...>::value;
+        };
+
+        template<typename T, typename... ArgsT>
+        struct type_index{
+            static constexpr int value = type_index_helper<0, T, ArgsT...>::value;
+        };
+    }
+
+    template<typename T>
+    struct index{
+        static constexpr int value = detail::type_index<T, Polyhedron, Sphere, Box, Cone, Cylinder>::value;
+    };
+}
+
 class ShapeOutRadiusVisitor: public boost::static_visitor<double>{
 public:
-    double operator()(const shape::Polyhedron& poly)const{
-        return poly.out_radius();
+    template<typename T>
+    double operator()(const T& shape)const{
+        return shape.out_radius();
     }
 
     double operator()(const shape::Sphere& sph)const{

@@ -3,5 +3,8 @@
 
 #include "sphere.h"
 #include "polyhedron.h"
+#include "box.h"
+#include "cone.h"
+#include "cylinder.h"
 
 #endif

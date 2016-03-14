@@ -14,12 +14,12 @@
 [X] Make sure particles with different sizes are working.
 [X] Make sure asymmetric particles are working.
 [X] Make sure mixtures of different particle shapes are working.
+[X] Implement more shapes.
+[ ] Find a boost.variant replacement or roll your own (move semantics would be nice).
+[ ] Implement Complex shapes.
 [ ] Implement hard walls.
 [ ] Improve simulation callback (PeriodicCallback).
-[ ] Find a boost.variant replacement or roll your own (move semantics would be nice).
 [ ] Consider using Cereal for (de)serialization.
 [ ] Try implementing TOI using SAT for polyhedra, and compare performance.
 [ ] Use relative time to improve numerical precision.
-[ ] Add more shapes.
-[ ] Implement Complex shapes.
 [ ] Make into library?
