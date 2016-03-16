@@ -41,11 +41,13 @@ namespace shape{
     inline clam::Vec3d Cone::support(const clam::Vec3d& dir)const{
         double test = dir[1] / dir.length();
         if(test >= sintheta_) return clam::Vec3d(0.0, half_height_, 0.0);
-        else if(test < sintheta_ && (dir[0] != 0.0 || dir[2] != 0.0)){
+        else{
             double length = sqrt(dir[0] * dir[0] + dir[2] * dir[2]);
-            return clam::Vec3d(base_radius_ * dir[0] / length, -half_height_, base_radius_ * dir[2] / length);
+            if(test < sintheta_ && length >= 1.0e-12){
+                return clam::Vec3d(base_radius_ * dir[0] / length, -half_height_, base_radius_ * dir[2] / length);
+            }
+            else return clam::Vec3d(0.0, -half_height_, 0.0);
         }
-        else return clam::Vec3d(0.0, -half_height_, 0.0);
     }
 
 }

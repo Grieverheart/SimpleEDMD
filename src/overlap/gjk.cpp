@@ -610,7 +610,6 @@ namespace overlap{
 
     };//namespace
 
-    //TODO: Recheck error bound.
     Vec3d gjk_distance(
         const Transform& pa, const shape::Convex& a,
         const Transform& pb, const shape::Convex& b,
@@ -625,24 +624,26 @@ namespace overlap{
         auto inv_rot_a = pa.rot_.inv();
         auto inv_rot_b = pb.rot_.inv();
 
-        while(fail_safe++ < 100){
+        while(++fail_safe < 200){
             auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b + ((feather > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
 
             const Vec3d& last = S.get_last_point();
-            if(S.contains(new_point) || fabs(dot(dir, new_point - last)) < 1.0e-14 * dir.length()){
+
+            if(S.contains(new_point) || (fail_safe > 1 && (1.0 - clam::dot(new_point, dir) / clam::dot(last, dir)) < 1.0e-8)){
                 return dir * (dot(dir, last) / dir.length2());
             }
-
             S.add_point(new_point);
 
             S.closest(dir);
-            if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
+            if(S.size() == 4 || sqr(dot(dir, new_point)) / dir.length2() <= 1.0e-14) return 0.0;
         }
 
         printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
-        return 0.0;
+
+        const Vec3d& last = S.get_last_point();
+        return dir * (dot(dir, last) / dir.length2());
     }
 
     //TODO: Recheck error bound.
@@ -660,13 +661,13 @@ namespace overlap{
         auto inv_rot_a = pa.rot_.inv();
         auto inv_rot_b = pb.rot_.inv();
 
-        while(fail_safe++ < 100){
+        while(++fail_safe < 200){
             auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(dir)));
             auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(-dir)));
             Vec3d new_point = vertex_a - vertex_b;
 
             const Vec3d& last = S.get_last_point();
-            if(S.contains(new_point) || fabs(dot(dir, new_point - last)) < 1.0e-14 * dir.length()){
+            if(S.contains(new_point) || (fail_safe > 1 && (1.0 - clam::dot(new_point, dir) / clam::dot(last, dir)) < 1.0e-8)){
                 auto dist_vec = dir * (dot(dir, last) / dir.length2());
                 S.compute_closest_points(dist_vec, point_on_a, point_on_b);
                 return dist_vec;
@@ -677,12 +678,13 @@ namespace overlap{
             S.closest(dir);
 
             //Overlapping!
-            if(S.size() == 4 || dir.length2() == 0.0) return 0.0;
+            if(S.size() == 4 || sqr(dot(dir, new_point)) / dir.length2() <= 1.0e-14) return 0.0;
         }
 
         printf("Encountered error in GJK closest points: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
         return 0.0;
     }
+
 
     bool gjk_boolean(
         const Transform& pa, const shape::Convex& a,
