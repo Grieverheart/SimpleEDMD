@@ -171,6 +171,7 @@ namespace overlap{
             void compute_closest_points(const Vec3d& P, Vec3d& pa, Vec3d& pb){
                 switch(size_){
                 //IMPORTANT: We are having accuracy problems with this projection.
+                case 4:
                 case 3:{
                     const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
                     const Vec3d& aA = a_[last_sb_];
@@ -279,7 +280,7 @@ namespace overlap{
                 double dot_ad = dot(ad, a);
 
                 if(dot_ab >= 0.0 && dot_ac >= 0.0 && dot_ad >= 0.0){
-                    dir = -a; //Take direction passing through origin
+                    dir = a; //Take direction passing through origin
                     remove_point(pos[0]);
                     remove_point(pos[1]);
                     remove_point(pos[2]);
@@ -301,7 +302,7 @@ namespace overlap{
                 // The origin must be inside the space defined by the intersection
                 // of two half-space normal to the adjacent faces abc, abd
                 if(dot_abPerp1 >= 0.0 && dot_abPerp2 >= 0.0 && dot_ab <= 0.0){
-                    dir = -a - (dot_ab / (dot_ab - dot(ab, b))) * ab;
+                    dir = a + (dot_ab / (dot_ab - dot(ab, b))) * ab;
                     remove_point(pos[1]);
                     remove_point(pos[2]);
                     break;
@@ -316,7 +317,7 @@ namespace overlap{
                 // The origin must be inside the space defined by the intersection
                 // of two half-space normal to the adjacent faces abc, acd
                 if(dot_acPerp1 >= 0.0 && dot_acPerp2 >= 0.0 && dot_ac <= 0.0){
-                    dir = -a - (dot_ac / (dot_ac - dot(ac, c))) * ac;
+                    dir = a + (dot_ac / (dot_ac - dot(ac, c))) * ac;
                     remove_point(pos[0]);
                     remove_point(pos[2]);
                     break;
@@ -330,7 +331,7 @@ namespace overlap{
                 // The origin must be inside the space defined by the intersection
                 // of two half-space normal to the adjacent faces acd, abd
                 if(dot_adPerp1 >= 0.0 && dot_adPerp2 >= 0.0 && dot_ad <= 0.0){
-                    dir = -a - (dot_ad / (dot_ad - dot(ad, d))) * ad;
+                    dir = a + (dot_ad / (dot_ad - dot(ad, d))) * ad;
                     remove_point(pos[0]);
                     remove_point(pos[1]);
                     break;
@@ -344,7 +345,7 @@ namespace overlap{
                     /* Remove point d */
                     remove_point(pos[2]);
                     dir = (dot(ad, abxac) > 0.0)? -abxac: abxac;
-                    dir *= -dot(dir, a) / dir.length2();
+                    dir *= dot(dir, a) / dir.length2();
                     break;
                 }
 
@@ -354,7 +355,7 @@ namespace overlap{
                     /* Remove point c */
                     remove_point(pos[1]);
                     dir = (dot(ac, abxad) > 0.0)? -abxad: abxad;
-                    dir *= -dot(dir, a) / dir.length2();
+                    dir *= dot(dir, a) / dir.length2();
                     break;
                 }
 
@@ -364,7 +365,7 @@ namespace overlap{
                     /* Remove point b */
                     remove_point(pos[0]);
                     dir = (dot(ab, acxad) > 0.0)? -acxad: acxad;
-                    dir *= -dot(dir, a) / dir.length2();
+                    dir *= dot(dir, a) / dir.length2();
                     break;
                 }
 
@@ -386,7 +387,7 @@ namespace overlap{
                 double dot_aba = -dot(ab, a);
                 double dot_aca = -dot(ac, a);
                 if(dot_aba <= 0.0 && dot_aca <= 0.0){
-                    dir = -a; //Take direction passing through origin
+                    dir = a; //Take direction passing through origin
                     remove_point(pos[0]);
                     remove_point(pos[1]);
                     break;
@@ -397,7 +398,7 @@ namespace overlap{
                 double dot_acb = -dot(ac, b);
                 double vc = dot_aba * dot_acb - dot_abb * dot_aca;
                 if(vc <= 0.0 && dot_aba >= 0.0 && dot_abb <= 0.0){
-                    dir = -a - (dot_aba / (dot_aba - dot_abb)) * ab;
+                    dir = a + (dot_aba / (dot_aba - dot_abb)) * ab;
                     /* Remove Point c */
                     remove_point(pos[1]);
                     break;
@@ -409,14 +410,14 @@ namespace overlap{
                 double vb = dot_abc * dot_aca - dot_aba * dot_acc;
                 if(vb <= 0.0 && dot_aca >= 0.0 && dot_acc <= 0.0){
                     double w = dot_aca / (dot_aca - dot_acc);
-                    dir = -a - w * ac;
+                    dir = a + w * ac;
                     /* Remove Point b */
                     remove_point(pos[0]);
                     break;
                 }
 
                 double va = dot_abb * dot_acc - dot_abc * dot_acb;
-                dir = -a - (ab * vb + ac * vc) / (va + vb + vc);
+                dir = a + (ab * vb + ac * vc) / (va + vb + vc);
                 break;
             }
             case 2:
@@ -430,7 +431,7 @@ namespace overlap{
 
                 double t = -dot(ab, a);
                 if(t <= 0.0){
-                    dir = -a; //Take direction passing through origin
+                    dir = a; //Take direction passing through origin
                     remove_point(pos[0]);
                     break;
                 }
@@ -439,17 +440,17 @@ namespace overlap{
                 if(t >= denom){
                     remove_point(last_sb_);
                     last_sb_ = pos[0];
-                    dir = -b;
+                    dir = b;
                     break;
                 }
 
-                dir = -(a + ab * (t / denom));
+                dir = a + ab * (t / denom);
                 break;
             }
             case 1:
             {
                 const Vec3d& a = p_[last_sb_];
-                dir = -a;
+                dir = a;
                 break;
             }
             default: break;
@@ -635,11 +636,11 @@ namespace overlap{
         double dist2 = std::numeric_limits<double>::max();
 
         do{
-            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(dir)));
-            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(-dir)));
+            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(-dir)));
+            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(dir)));
             Vec3d new_point = vertex_a - vertex_b + ((dir.length() > 0.0)? (feather / dir.length()) * dir: Vec3d(0.0));
 
-            if(S.contains(new_point) || dist2 + dot(dir, new_point) <= dist2 * 1.0e-8){
+            if(S.contains(new_point) || dist2 - dot(dir, new_point) <= dist2 * 1.0e-8){
                 break;
             }
 
@@ -647,15 +648,13 @@ namespace overlap{
 
             S.closest(dir);
 
-            if(S.size() == 4) return 0.0;
-
             dist2 = dir.length2();
 
-        }while(dist2 > 1.0e-12 && ++fail_safe < 2000);
+        }while(S.size() < 4 && dist2 > 1.0e-12 && ++fail_safe < 2000);
 
         if(fail_safe == 2000) printf("Encountered error in GJK distance: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
 
-        return -dir;
+        return dir;
     }
 
     //TODO: Recheck error bound.
@@ -675,11 +674,11 @@ namespace overlap{
         double dist2 = std::numeric_limits<double>::max();
 
         do{
-            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(dir)));
-            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(-dir)));
+            auto vertex_a = pa.pos_ + pa.rot_.rotate(pa.size_ * a.support(inv_rot_a.rotate(-dir)));
+            auto vertex_b = pb.pos_ + pb.rot_.rotate(pb.size_ * b.support(inv_rot_b.rotate(dir)));
             Vec3d new_point = vertex_a - vertex_b;
 
-            if(S.contains(new_point) || dist2 + dot(dir, new_point) <= dist2 * 1.0e-8){
+            if(S.contains(new_point) || dist2 - dot(dir, new_point) <= dist2 * 1.0e-8){
                 break;
             }
 
@@ -687,16 +686,14 @@ namespace overlap{
 
             S.closest(dir);
 
-            if(S.size() == 4) return 0.0;
-
             dist2 = dir.length2();
 
-        }while(dist2 > 1.0e-12 && ++fail_safe < 2000);
+        }while(S.size() < 4 && dist2 > 1.0e-12 && ++fail_safe < 2000);
 
         if(fail_safe == 2000) printf("Encountered error in GJK closest points: Infinite Loop.\n Direction (%f, %f, %f)\n", dir[0], dir[1], dir[2]);
 
-        S.compute_closest_points(-dir, point_on_a, point_on_b);
-        return -dir;
+        S.compute_closest_points(dir, point_on_a, point_on_b);
+        return dir;
     }
 
 

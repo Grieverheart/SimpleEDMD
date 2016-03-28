@@ -220,14 +220,14 @@ public:
 
                 if(distance < prev_distance && distance < 2.0 * sim_.closest_distance_tol_){
                     int iter = 0;
-                    while(shortest_dist.length() < 2.0 * sim_.closest_distance_tol_){
+                    while(distance < 2.0 * sim_.closest_distance_tol_){
                         time *= 0.999;
                         stream_position(partB, time);
                         stream_rotation(partB, time);
                         stream_rotation(partA, time);
                         partB.time = time;
                         partA.time = time;
-                        shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b);
+                        distance = overlap::gjk_distance(partA.xform, a, partB.xform, b).length();
                         //NOTE: This should alsmost never happen.
                         if(iter++ > 1000){
                             printf("%d, %d\n", pa_idx_, pb_idx_);
