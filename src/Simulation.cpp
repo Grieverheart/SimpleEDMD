@@ -211,14 +211,33 @@ public:
             partA.vel        = 0.0;
             partA.time       = 0.0;
 
+            double prev_distance = 0.0;
+            int iters = 0;
             while(true){
-                clam::Vec3d shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b, sim_.closest_distance_tol_);
-
+                ++iters;
+                clam::Vec3d shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b);
                 double distance = shortest_dist.length();
-                if(distance == 0.0){
-                    shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b);
-                    distance = shortest_dist.length();
+
+                if(distance < prev_distance && distance < 2.0 * sim_.closest_distance_tol_){
+                    int iter = 0;
+                    while(shortest_dist.length() < 2.0 * sim_.closest_distance_tol_){
+                        time *= 0.999;
+                        stream_position(partB, time);
+                        stream_rotation(partB, time);
+                        stream_rotation(partA, time);
+                        partB.time = time;
+                        partA.time = time;
+                        shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b);
+                        //NOTE: This should alsmost never happen.
+                        if(iter++ > 1000){
+                            printf("%d, %d\n", pa_idx_, pb_idx_);
+                            return ParticleEvent::None();
+                        }
+                    }
+
+                    return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
                 }
+
                 clam::Vec3d shortest_dist_n = shortest_dist / distance;
 
                 /* Conservative advancement by Mirtich 1996 PhD Thesis */
@@ -230,43 +249,26 @@ public:
 
                 /* Conservative advancement, tighter bound using support functions. */
                 double max_vel = clam::dot(shortest_dist_n, partB.vel);
-                double abs_omega_A = partA.ang_vel.length();
-                if(abs_omega_A > 0.0){
-                    auto inv_rot_A = partA.xform.rot_.inv();
-                    clam::Vec3d c1  = inv_rot_A.rotate(clam::cross(partA.ang_vel, shortest_dist_n));
-                    clam::Vec3d c1p = clam::cross(inv_rot_A.rotate(partA.ang_vel), c1) / abs_omega_A;
-                    max_vel += clam::dot(c1, partA.xform.size_ * a.support(c1)) + clam::dot(c1p, partA.xform.size_ * a.support(c1p));
-                }
-                double abs_omega_B = partB.ang_vel.length();
-                if(abs_omega_B > 0.0){
-                    auto inv_rot_B = partB.xform.rot_.inv();
-                    clam::Vec3d c2  = inv_rot_B.rotate(clam::cross(partB.ang_vel, shortest_dist_n));
-                    clam::Vec3d c2p = clam::cross(inv_rot_B.rotate(partB.ang_vel), c2) / abs_omega_B;
-                    max_vel += clam::dot(c2, partB.xform.size_ * b.support(c2)) + clam::dot(c2p, partB.xform.size_ * b.support(c2p));
+                {
+                    double abs_omega_A = partA.ang_vel.length();
+                    if(abs_omega_A > 0.0){
+                        auto inv_rot_A = partA.xform.rot_.inv();
+                        clam::Vec3d c1  = inv_rot_A.rotate(clam::cross(partA.ang_vel, shortest_dist_n));
+                        clam::Vec3d c1p = clam::cross(inv_rot_A.rotate(partA.ang_vel), c1) / abs_omega_A;
+                        max_vel += clam::dot(c1, partA.xform.size_ * a.support(c1)) + clam::dot(c1p, partA.xform.size_ * a.support(c1p));
+                    }
+                    double abs_omega_B = partB.ang_vel.length();
+                    if(abs_omega_B > 0.0){
+                        auto inv_rot_B = partB.xform.rot_.inv();
+                        clam::Vec3d c2  = inv_rot_B.rotate(clam::cross(partB.ang_vel, shortest_dist_n));
+                        clam::Vec3d c2p = clam::cross(inv_rot_B.rotate(partB.ang_vel), c2) / abs_omega_B;
+                        max_vel += clam::dot(c2, partB.xform.size_ * b.support(c2)) + clam::dot(c2p, partB.xform.size_ * b.support(c2p));
+                    }
                 }
 
                 if(max_vel < 0.0) break;
 
-                //TODO: We can change the bound to 2 * tol and additionally check
-                //if we are approaching (distance < prev_distance).
-                if(distance < sim_.closest_distance_tol_){
-                    int iter = 0;
-                    while(shortest_dist.length() < sim_.closest_distance_tol_){
-                        time *= 0.999;
-                        stream_position(partB, time);
-                        stream_rotation(partB, time);
-                        stream_rotation(partA, time);
-                        partB.time = time;
-                        partA.time = time;
-                        shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b, sim_.closest_distance_tol_);
-                        //NOTE: This should alsmost never happen.
-                        if(iter++ > 1000) return ParticleEvent::None();
-                    }
-
-                    return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
-                }
-
-                double max_advance = distance / max_vel;
+                double max_advance = (distance - sim_.closest_distance_tol_) / max_vel;
                 time += max_advance;
 
                 //NOTE: The separation time of the bounding spheres is a
@@ -279,6 +281,8 @@ public:
                 stream_rotation(partA, time);
                 partB.time = time;
                 partA.time = time;
+
+                prev_distance = distance;
             }
         }
 
@@ -532,11 +536,8 @@ void Simulation::run_neighborhood_cross_event(const ParticleEvent& event){
     int pid = event.pid_;
 
     for(int nb: nnl_[pid]){
-        if(nb == pid) continue;
-        //Perhaps remove_if
         nnl_[nb].erase(std::find(nnl_[nb].begin(), nnl_[nb].end(), pid));
     }
-    nnl_[pid].clear();
 
     update_particle(particles_[pid], time_, pbc_);
     boxes_[pid] = particles_[pid].xform;
@@ -548,6 +549,8 @@ void Simulation::run_neighborhood_cross_event(const ParticleEvent& event){
     auto bba = boxes_[pid];
     auto inv_rot = bba.rot_.inv();
 
+    std::vector<size_t> nnl_new;
+
     for(int cid: cll_.cell_nbs(cll_.cell_index(pid))){
         for(int n: cll_.cell_content(cid)){
             if(n == pid) continue;
@@ -558,13 +561,17 @@ void Simulation::run_neighborhood_cross_event(const ParticleEvent& event){
             bbb.rot_ = inv_rot * bbb.rot_;
 
             if(overlap::bv_overlap(bba, *box_shapes_[shape_id_a], bbb, *box_shapes_[shape_id_b], obb_margin_)){
-                nnl_[pid].push_back(n);
+                nnl_new.push_back(n);
                 nnl_[n].push_back(pid);
-                auto event = get_collision_event(pid, n);
-                if(event.get_type() != PE_NONE) event_mgr_.push(pid, event);
+                if(std::find(nnl_[pid].begin(), nnl_[pid].end(), n) == nnl_[pid].end()){
+                    auto event = get_collision_event(pid, n);
+                    if(event.get_type() != PE_NONE) event_mgr_.push(pid, event);
+                }
             }
         }
     }
+    nnl_[pid] = nnl_new;
+
     event_mgr_.push(pid, get_neighborhood_cross_event(pid));
     event_mgr_.update(pid);
 }
@@ -595,7 +602,7 @@ Simulation::~Simulation(void){
 Simulation::Simulation(const Configuration& config):
     time_(0.0),
     statistics_start_time_(0.0),
-    closest_distance_tol_(1.0e-8), //@note: increase tolerance to increase performance.
+    closest_distance_tol_(1.0e-6), //@note: increase tolerance to increase performance.
     obb_margin_(0.1),
     max_collision_time_(5.0),
     av_momentum_transfer_(0.0),
@@ -605,7 +612,7 @@ Simulation::Simulation(const Configuration& config):
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
-    mtGen_.seed(0);//time(NULL));
+    mtGen_.seed(std::time(NULL));
 
     auto n_part = particles_.size();
 
@@ -675,8 +682,8 @@ Simulation::Simulation(const Configuration& config):
             auto event = get_collision_event(i, j);
             if(event.get_type() != PE_NONE) event_mgr_.push(i, event);
         }
-//Check for overlaps at start of simulation.
 #ifndef NDEBUG
+//Check for overlaps at start of simulation.
         Transform ta = particles_[i].xform;
         Transform tb = particles_[j].xform;
         tb.pos_ = pbc_.minImage(tb.pos_ - ta.pos_);
