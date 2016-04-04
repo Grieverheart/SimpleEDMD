@@ -95,7 +95,6 @@ namespace overlap{
             double v = (d00 >= d01)? (d02 - d01 * w) / d00: (d12 - d11 * w) / d01;
             //double v = (d00 >= d01)? d02 / d00 - (d01 / d00) * w: d12 / d01 - (d11 / d01) * w;
             double u = 1.0 - v - w;
-            if(isnan(w)) printf("%e, %e, %e - %e, %e, %e\n", v0[0], v0[1], v0[2], v1[0], v1[1], v1[2]);
 
             return Vec3d(u, v, w);
         }
