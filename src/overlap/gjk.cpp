@@ -95,6 +95,7 @@ namespace overlap{
             double v = (d00 >= d01)? (d02 - d01 * w) / d00: (d12 - d11 * w) / d01;
             //double v = (d00 >= d01)? d02 / d00 - (d01 / d00) * w: d12 / d01 - (d11 / d01) * w;
             double u = 1.0 - v - w;
+            if(isnan(w)) printf("%e, %e, %e - %e, %e, %e\n", v0[0], v0[1], v0[2], v1[0], v1[1], v1[2]);
 
             return Vec3d(u, v, w);
         }
@@ -170,8 +171,29 @@ namespace overlap{
 
             void compute_closest_points(const Vec3d& P, Vec3d& pa, Vec3d& pb){
                 switch(size_){
-                //IMPORTANT: We are having accuracy problems with this projection.
-                case 4:
+                //If the simplex has 4 points, it means that the last point added,
+                //most likely lies on the previous simplex, a triangle. We instead
+                //use the last simplex to compute the closest points.
+                case 4:{
+                    const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
+                    const Vec3d& aA = a_[pos[0]];
+                    const Vec3d& aB = a_[pos[1]];
+                    const Vec3d& aC = a_[pos[2]];
+                    const Vec3d& bA = b_[pos[0]];
+                    const Vec3d& bB = b_[pos[1]];
+                    const Vec3d& bC = b_[pos[2]];
+
+                    const Vec3d& A = p_[pos[0]];
+                    const Vec3d& B = p_[pos[1]];
+                    const Vec3d& C = p_[pos[2]];
+
+                    auto bary = barycentric_coordinates(P, A, B, C);
+
+                    pa = aA * bary[0] + aB * bary[1] + aC * bary[2];
+                    pb = bA * bary[0] + bB * bary[1] + bC * bary[2];
+
+                    break;
+                }
                 case 3:{
                     const uchar* pos = p_pos[(bits_ ^ (1 << last_sb_))];
                     const Vec3d& aA = a_[last_sb_];
@@ -189,16 +211,6 @@ namespace overlap{
 
                     pa = aA * bary[0] + aB * bary[1] + aC * bary[2];
                     pb = bA * bary[0] + bB * bary[1] + bC * bary[2];
-
-                    //auto omg = (pa - pb);
-                    //omg /= omg.length();
-                    //auto shit = omg - P / P.length();
-                    //printf("%e\n", P.length());
-                    //printf("____ %e, %e, %e", P[0] / P.length(), P[1] / P.length(), P[2] / P.length());
-                    //printf("____ %e, %e, %e\n", omg[0], omg[1], omg[2]);
-                    //assert(fabs(shit[0]) < 1.0e-12);
-                    //assert(fabs(shit[1]) < 1.0e-12);
-                    //assert(fabs(shit[2]) < 1.0e-12);
 
                     break;
                 }
