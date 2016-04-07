@@ -776,6 +776,7 @@ void serialize(Archive& ar, const Simulation& sim){
     serialize(ar, sim.prev_time_);
     serialize(ar, sim.statistics_start_time_);
     serialize(ar, sim.closest_distance_tol_);
+    serialize(ar, sim.obb_margin_);
     serialize(ar, sim.max_collision_time_);
     serialize(ar, sim.av_momentum_transfer_);
     serialize(ar, sim.av_kinetic_delta_);
@@ -799,6 +800,7 @@ void deserialize(Archive& ar, Simulation* sim){
     deserialize(ar, &sim->prev_time_);
     deserialize(ar, &sim->statistics_start_time_);
     deserialize(ar, &sim->closest_distance_tol_);
+    deserialize(ar, &sim->obb_margin_);
     deserialize(ar, &sim->max_collision_time_);
     deserialize(ar, &sim->av_momentum_transfer_);
     deserialize(ar, &sim->av_kinetic_delta_);
@@ -809,8 +811,11 @@ void deserialize(Archive& ar, Simulation* sim){
     deserialize(ar, &sim->n_collisions_);
     deserialize(ar, &sim->config_);
 
+    sim->box_shapes_ = new bounding_volume::Variant*[sim->shapes_.size()];
     for(size_t i = 0; i < sim->shapes_.size(); ++i) deserialize(ar, &sim->box_shapes_[i]);
-    deserialize(ar, &sim->boxes_, sim->particles_.size());
+    sim->boxes_ = new Transform[sim->particles_.size()];
+    deserialize(ar, sim->boxes_, sim->particles_.size());
+
     sim->nnl_ = new std::vector<size_t>[sim->particles_.size()];
     for(size_t i = 0; i < sim->particles_.size(); ++i) deserialize(ar, &sim->nnl_[i]);
 

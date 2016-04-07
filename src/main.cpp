@@ -145,7 +145,7 @@ int main(int argc, char *argv[]){
         fclose(fp);
     });
 
-    sim->run(10.0, output);
+    sim->run(1000.0, output);
 
     fclose(pressure_fp);
 

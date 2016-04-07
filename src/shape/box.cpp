@@ -18,10 +18,10 @@ namespace shape{
     }
 
     void deserialize(Archive& ar, Box* box){
-        serialize(ar, &box->extent_);
-        serialize(ar, &box->in_radius_);
-        serialize(ar, &box->out_radius_);
-        serialize(ar, &box->volume_);
+        deserialize(ar, &box->extent_);
+        deserialize(ar, &box->in_radius_);
+        deserialize(ar, &box->out_radius_);
+        deserialize(ar, &box->volume_);
     }
 
 }

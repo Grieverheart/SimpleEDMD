@@ -5,6 +5,6 @@
 #include "bounding_volume_variant_fwd.h"
 
 void serialize(Archive& ar, const bounding_volume::Variant& shape);
-void deserialize(Archive& ar, bounding_volume::Variant* shape);
+void deserialize(Archive& ar, bounding_volume::Variant** shape);
 
 #endif

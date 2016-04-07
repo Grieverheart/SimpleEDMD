@@ -5,6 +5,6 @@
 #include "shape/variant_fwd.h"
 
 void serialize(Archive& ar, const shape::Variant& shape);
-void deserialize(Archive& ar, shape::Variant* shape);
+void deserialize(Archive& ar, shape::Variant** shape);
 
 #endif

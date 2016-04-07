@@ -39,6 +39,6 @@ void deserialize(Archive& ar, Configuration* config){
     size_type shapes_size = 0;
     deserialize(ar, &shapes_size);
     config->shapes_.resize(shapes_size);
-    for(auto& shape_ptr: config->shapes_) deserialize(ar, shape_ptr);
+    for(auto& shape_ptr: config->shapes_) deserialize(ar, &shape_ptr);
     deserialize(ar, &config->pbc_);
 }
