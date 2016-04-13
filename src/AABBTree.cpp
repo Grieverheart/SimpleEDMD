@@ -649,7 +649,7 @@ int32_t AABBTree::GetMaxBalance() const
 
 		int32_t child1 = node->child1;
 		int32_t child2 = node->child2;
-		int32_t balance = fabs(m_nodes[child2].height - m_nodes[child1].height);
+		int32_t balance = std::abs(m_nodes[child2].height - m_nodes[child1].height);
 		maxBalance = std::max(maxBalance, balance);
 	}
 

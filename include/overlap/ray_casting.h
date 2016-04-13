@@ -84,8 +84,8 @@ namespace overlap{
         double max_dist = 0.0;
         clam::Vec3d point = pos + t * dir - 0.5 * (aabb_min + aabb_max);
         for(int i = 0; i < 3; ++i){
-            if(abs(point[i]) > max_dist){
-                max_dist = abs(point[i]);
+            if(std::abs(point[i]) > max_dist){
+                max_dist = std::abs(point[i]);
                 if(normal){
                     *normal = clam::Vec3d(0.0);
                     (*normal)[i] = (max_dist > 0.0)? 1.0: -1.0;

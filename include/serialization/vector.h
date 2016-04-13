@@ -1,18 +1,13 @@
 #ifndef __SERIALIZATION_VECTOR_H
 #define __SERIALIZATION_VECTOR_H
 
-#include "archive.h"
+#include "common.h"
 #include <type_traits>
 #include <vector>
 
-template<typename condition, typename R = void >
-using EnableIf = typename std::enable_if<condition::value, R>::type;
-template<typename condition, typename R = void >
-using EnableIfNot = typename std::enable_if<!condition::value, R>::type;
-
 //Seserialization
 template<typename T>
-EnableIf<std::has_trivial_copy_constructor<T>,
+EnableIf<std::is_trivially_copyable<T>,
 void> serialize(Archive& ar, const std::vector<T>& vec){
     auto size = vec.size();
     serialize(ar, size);
@@ -20,7 +15,7 @@ void> serialize(Archive& ar, const std::vector<T>& vec){
 }
 
 template<typename T>
-EnableIfNot<std::has_trivial_copy_constructor<T>,
+EnableIfNot<std::is_trivially_copyable<T>,
 void> serialize(Archive& ar, const std::vector<T>& vec){
     auto size = vec.size();
     serialize(ar, size);
@@ -29,7 +24,7 @@ void> serialize(Archive& ar, const std::vector<T>& vec){
 
 //Deserialization
 template<typename T>
-EnableIf<std::has_trivial_copy_constructor<T>,
+EnableIf<std::is_trivially_copyable<T>,
 void> deserialize(Archive& ar, std::vector<T>* vec){
     using size_type = typename std::vector<T>::size_type;
     size_type size = 0;
@@ -39,7 +34,7 @@ void> deserialize(Archive& ar, std::vector<T>* vec){
 }
 
 template<typename T>
-EnableIfNot<std::has_trivial_copy_constructor<T>,
+EnableIfNot<std::is_trivially_copyable<T>,
 void> deserialize(Archive& ar, std::vector<T>* vec){
     using size_type = typename std::vector<T>::size_type;
     size_type size = 0;

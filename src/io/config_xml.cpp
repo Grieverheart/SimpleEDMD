@@ -70,7 +70,7 @@ public:
 
 void print_shape(FILE* fp, const shape::Variant& shape){
     auto str = boost::apply_visitor(ShapePrintVisitor(), shape);
-    fprintf(fp, str.c_str());
+    fprintf(fp, "%s", str.c_str());
 }
 
 void print_particle(FILE* fp, const Particle& particle, bool should_print_shape_id){

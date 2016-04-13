@@ -17,8 +17,8 @@ inline void stream_rotation(Particle& particle, double time){
     clam::Vec3d ha = ((time - particle.time) * 0.5) * particle.ang_vel;
     double l = ha.length(); // magnitude
     if(l > 0.0){
-        double sl, cl;
-        sincos(l, &sl, &cl);
+        double sl = sin(l);
+        double cl = cos(l);
         particle.xform.rot_ = clam::Quatd(ha * (sl / l), cl) * particle.xform.rot_;
     }
 }

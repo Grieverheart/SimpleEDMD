@@ -58,8 +58,8 @@ namespace{
         clam::Vec3d ha = ((time - particle.time) * 0.5) * particle.ang_vel;
         double l = ha.length(); // magnitude
         if(l > 0.0){
-            double sl, cl;
-            sincos(l, &sl, &cl);
+            double sl = sin(l);
+            double cl = cos(l);
             particle.xform.rot_ = clam::Quatd(ha * (sl / l), cl) * particle.xform.rot_;
         }
     }
@@ -159,8 +159,6 @@ namespace{
             double min_z = shape.support(clam::Vec3d(0.0, 0.0, -1.0))[2];
             clam::Vec3d max_r = clam::Vec3d(max_x, max_y, max_z);
             clam::Vec3d min_r = clam::Vec3d(min_x, min_y, min_z);
-            clam::Vec3d box_size(
-            );
 
             return bounding_volume::Variant(shape::Box(clam::Vec3d(
                 2.0 * std::max(fabs(min_r[0]), fabs(max_r[0])),
@@ -229,7 +227,8 @@ public:
                         partA.time = time;
                         distance = overlap::gjk_distance(partA.xform, a, partB.xform, b).length();
                         //NOTE: This should alsmost never happen.
-                        if(iter++ > 1000){
+                        if(iter++ > 10000){
+                            printf("%d, %e, %e, %e\n", iters, prev_distance, distance, time);
                             printf("%d, %d\n", pa_idx_, pb_idx_);
                             return ParticleEvent::None();
                         }
