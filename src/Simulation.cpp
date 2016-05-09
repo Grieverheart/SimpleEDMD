@@ -611,7 +611,7 @@ Simulation::Simulation(const Configuration& config):
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
-    mtGen_.seed(std::time(NULL));
+    mtGen_.seed(0);//std::time(NULL));
 
     auto n_part = particles_.size();
 
@@ -744,7 +744,7 @@ void Simulation::stop(void){
     is_running_ = false;
 }
 
-//TODO: Reset velocities, and perhaps statistics
+//TODO: Reset velocities
 void Simulation::restart(void){
     event_mgr_.clear();
 
@@ -788,6 +788,8 @@ void Simulation::restart(void){
         event_mgr_.push(i, event);
         event_mgr_.update(i);
     }
+
+    reset_statistics();
 }
 
 void Simulation::reset_statistics(void){
@@ -799,6 +801,27 @@ void Simulation::reset_statistics(void){
 
 int Simulation::num_collisions(void)const{
     return n_collision_events_;
+}
+
+bool Simulation::check_overlaps(void)const{
+    for(size_t i = 0; i < particles_.size(); ++i){
+        for(size_t j: nnl_[i]){
+            if(j > i){
+                Particle pa = particles_[i];
+                Particle pb = particles_[j];
+                update_particle(pa, time_, pbc_);
+                update_particle(pb, time_, pbc_);
+                pb.xform.pos_ = pbc_.minImage(pb.xform.pos_ - pa.xform.pos_);
+                pa.xform.pos_ = 0.0;
+
+                if(overlap::shape_overlap(pa.xform, *shapes_[particles_[i].shape_id], pb.xform, *shapes_[particles_[j].shape_id])){
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 double Simulation::time(void)const{

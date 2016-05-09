@@ -127,40 +127,31 @@ int main(int argc, char *argv[]){
         sim->reset_statistics();
 
         //Check for overlaps
-        //TODO: Replace with more efficient check using Cell List.
-        for(size_t i = 0; i < config.particles_.size(); ++i){
-            for(size_t j = i + 1; j < config.particles_.size(); ++j){
-                Particle pa = config.particles_[i];
-                Particle pb = config.particles_[j];
-                pb.xform.pos_ = config.pbc_.minImage(pb.xform.pos_ - pa.xform.pos_);
-                pa.xform.pos_ = 0.0;
-                if(overlap::shape_overlap(pa.xform, *config.shapes_[pa.shape_id], pb.xform, *config.shapes_[pb.shape_id])){
-                    printf("Overlap found: %lu, %lu\n", i, j);
+        if(sim->check_overlaps()){
+            printf("Overlaps found!\n");
 
-                    //Kind of a hack >_<
-                    sim->~Simulation();
-                    new (sim) Simulation();
+            //Kind of a hack >_<
+            sim->~Simulation();
+            new (sim) Simulation();
 
-                    sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
-                    printf("Resetting...\n");
-                    FILE* fp = fopen(buff, "rb");
-                    size_t file_size = get_file_size(fp);
-                    char* data = reinterpret_cast<char*>(malloc(file_size));
-                    fread(data, file_size, 1, fp);
-                    fclose(fp);
+            sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
+            printf("Resetting...\n");
+            FILE* fp = fopen(buff, "rb");
+            size_t file_size = get_file_size(fp);
+            char* data = reinterpret_cast<char*>(malloc(file_size));
+            fread(data, file_size, 1, fp);
+            fclose(fp);
 
-                    Archive ar(data, file_size);
-                    deserialize(ar, sim);
+            Archive ar(data, file_size);
+            deserialize(ar, sim);
 
-                    sim->restart();
+            sim->restart();
 
-                    printf("Starting at: %f\n", sim->time());
+            printf("Starting at: %f\n", sim->time());
 
-                    free(data);
+            free(data);
 
-                    return false;
-                }
-            }
+            return false;
         }
 
         Archive ar;
@@ -173,7 +164,7 @@ int main(int argc, char *argv[]){
         return true;
     });
 
-    sim->run(1000.0, output);
+    sim->run(2.0, output);
 
     fclose(pressure_fp);
 

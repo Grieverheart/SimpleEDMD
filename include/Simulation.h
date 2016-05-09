@@ -42,6 +42,8 @@ public:
     double average_pressure(void)const;
     int num_collisions(void)const;
 
+    bool check_overlaps(void)const;
+
     friend void serialize(Archive&, const Simulation&);
     friend void deserialize(Archive&, Simulation*);
 
