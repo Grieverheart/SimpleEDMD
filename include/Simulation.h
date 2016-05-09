@@ -27,6 +27,8 @@ public:
     ~Simulation(void);
 
     void run(double end_time, PeriodicCallback& output_condition);
+    void stop(void);
+    void restart(void);
 
     const std::vector<Particle>& particles(void)const;
     const RectangularPBC& pbc(void)const;
@@ -51,6 +53,9 @@ private:
     void run_possible_collision_event(const ParticleEvent& event);
 
 private:
+    bool is_running_;
+    //bool was_stopped_;
+
     double time_;
     double prev_time_;
     double statistics_start_time_;

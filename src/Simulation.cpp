@@ -703,8 +703,9 @@ Simulation::Simulation(const Configuration& config):
 
 void Simulation::run(double end_time, PeriodicCallback& output_condition){
 
-    bool running = true;
-    while(running){
+    is_running_ = true;
+
+    while(is_running_){
         ParticleEvent next_event = event_mgr_.getNextEvent();
         prev_time_ = time_;
         time_ = next_event.time_;
@@ -723,19 +724,69 @@ void Simulation::run(double end_time, PeriodicCallback& output_condition){
             run_neighborhood_cross_event(next_event);
             break;
         default:
-            running = false;
+            is_running_ = false;
             break;
         }
 
         output_condition(time_);
 
-        if(time_ >= end_time) running = false;
+        if(time_ >= end_time) is_running_ = false;
 
         //Optimization: After we have collected enough events, we set the
         //maximum time for which to search for collisions to 1.5 times
         //the maximum in-flight time of each particle. Of course, it
         //might still be possible to miss a collision, but unlikely.
         if(n_collision_events_ == 40000) max_collision_time_ = 1.5 * max_inflight_time_;
+    }
+}
+
+void Simulation::stop(void){
+    is_running_ = false;
+}
+
+//TODO: Reset velocities, and perhaps statistics
+void Simulation::restart(void){
+    event_mgr_.clear();
+
+    for(size_t pid = 0; pid < particles_.size(); ++pid){
+        nnl_[pid].clear();
+        update_particle(particles_[pid], time_, pbc_);
+        boxes_[pid] = particles_[pid].xform;
+        cll_.update(pid, boxes_[pid].pos_);
+    }
+
+    foreach_pair(cll_, [this](int i, int j) -> bool {
+        auto shape_id_i = particles_[i].shape_id;
+        auto shape_id_j = particles_[j].shape_id;
+        auto bbi = boxes_[i];
+        auto bbj = boxes_[j];
+
+        auto inv_rot = bbi.rot_.inv();
+        bbj.pos_ = inv_rot.rotate(pbc_.minImage(boxes_[j].pos_ - boxes_[i].pos_));
+        bbj.rot_ = inv_rot * bbj.rot_;
+
+        if(overlap::bv_overlap(bbi, *box_shapes_[shape_id_i], bbj, *box_shapes_[shape_id_j], obb_margin_)){
+            nnl_[i].push_back(j);
+            nnl_[j].push_back(i);
+            auto event = get_collision_event(i, j);
+            if(event.get_type() != PE_NONE) event_mgr_.push(i, event);
+        }
+#ifndef NDEBUG
+        //There should be no overlaps!
+        Transform ta = particles_[i].xform;
+        Transform tb = particles_[j].xform;
+        tb.pos_ = pbc_.minImage(tb.pos_ - ta.pos_);
+        ta.pos_ = 0.0;
+        assert(overlap::shape_overlap(ta, *shapes_[particles_[i].shape_id], tb, *shapes_[particles_[j].shape_id]) == false);
+#endif
+        return false;
+    });
+
+    for(size_t i = 0; i < particles_.size(); ++i){
+        auto event = get_neighborhood_cross_event(i);
+        assert(event.get_type() != PE_NONE);
+        event_mgr_.push(i, event);
+        event_mgr_.update(i);
     }
 }
 

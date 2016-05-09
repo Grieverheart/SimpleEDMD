@@ -8,20 +8,17 @@ public:
     PeriodicCallback(double t0):
         time_(t0),
         timeNext_([](double time){return time + 10000.0;}),
-        caller_([](double){})
+        caller_([](double) -> bool {return true;})
     {}
 
     ~PeriodicCallback(void){}
 
     void operator()(double time){
-        if(time >= time_){
-            caller_(time_);
-            time_ = timeNext_(time_);
-        }
+        if(time >= time_ && caller_(time_)) time_ = timeNext_(time_);
     }
 
     typedef std::function<double(double)> time_functor;
-    typedef std::function<void(double)> call_functor;
+    typedef std::function<bool(double)> call_functor;
 
     void setNextFunction(const time_functor& func){
         timeNext_ = func;

@@ -45,6 +45,13 @@ double packing_fraction(const Configuration& config){
     return particle_volume / volume;
 }
 
+inline size_t get_file_size(FILE* fp){
+    fseek(fp, 0l, SEEK_END);
+    size_t file_size = ftell(fp);
+    fseek(fp, 0l, SEEK_SET);
+    return file_size;
+}
+
 //TODO: Add function to reset simulation statistics (av_momentum_transfer).
 int main(int argc, char *argv[]){
 
@@ -101,7 +108,7 @@ int main(int argc, char *argv[]){
         pressure_fp = fopen(fp_buff, "w");
     }
 
-    output.setCallback([sim, pf, pressure_fp, directory](double time){
+    output.setCallback([sim, pf, pressure_fp, directory](double time) -> bool {
         printf("%f\n", time);
         static int nFiles = 0;
         Configuration config = sim->configuration();
@@ -119,9 +126,8 @@ int main(int argc, char *argv[]){
 
         sim->reset_statistics();
 
-#ifndef NDEBUG
         //Check for overlaps
-        bool overlaps = false;
+        //TODO: Replace with more efficient check using Cell List.
         for(size_t i = 0; i < config.particles_.size(); ++i){
             for(size_t j = i + 1; j < config.particles_.size(); ++j){
                 Particle pa = config.particles_[i];
@@ -129,20 +135,42 @@ int main(int argc, char *argv[]){
                 pb.xform.pos_ = config.pbc_.minImage(pb.xform.pos_ - pa.xform.pos_);
                 pa.xform.pos_ = 0.0;
                 if(overlap::shape_overlap(pa.xform, *config.shapes_[pa.shape_id], pb.xform, *config.shapes_[pb.shape_id])){
-                    printf("%lu, %lu\n", i, j);
-                    overlaps = true;
+                    printf("Overlap found: %lu, %lu\n", i, j);
+
+                    //Kind of a hack >_<
+                    sim->~Simulation();
+                    new (sim) Simulation();
+
+                    sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
+                    printf("Resetting...\n");
+                    FILE* fp = fopen(buff, "rb");
+                    size_t file_size = get_file_size(fp);
+                    char* data = reinterpret_cast<char*>(malloc(file_size));
+                    fread(data, file_size, 1, fp);
+                    fclose(fp);
+
+                    Archive ar(data, file_size);
+                    deserialize(ar, sim);
+
+                    sim->restart();
+
+                    printf("Starting at: %f\n", sim->time());
+
+                    free(data);
+
+                    return false;
                 }
             }
         }
-        assert(overlaps == false);
-        //if(overlaps) exit(0);
-#endif
+
         Archive ar;
         serialize(ar, *sim);
         sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
         FILE* fp = fopen(buff, "wb");
         fwrite(ar.data(), 1, ar.size(), fp);
         fclose(fp);
+
+        return true;
     });
 
     sim->run(1000.0, output);
