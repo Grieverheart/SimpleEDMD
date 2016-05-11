@@ -3,8 +3,6 @@
 
 #include "clam.h"
 #include "serialization/archive.h"
-#include <cassert>
-#include <cstdio>
 
 //Assume y > 0.0
 inline double wrap(double x, double y){

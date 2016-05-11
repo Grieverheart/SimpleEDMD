@@ -654,8 +654,17 @@ Simulation::Simulation(const Configuration& config):
     }
     sys_vel = sys_vel * (1.0 / n_part);
 
+    double min_cell_size = 2.0 * max_radius + 0.01;
+
+    //The box needs to be at least to cell sizes on each dimension
+    //or else we might get overlaps, since we're not calculating
+    //the collision time with all periodic images.
+    assert(2.0 * min_cell_size < pbc_.getSize()[0]);
+    assert(2.0 * min_cell_size < pbc_.getSize()[1]);
+    assert(2.0 * min_cell_size < pbc_.getSize()[2]);
+
     //Initialize cell list
-    cll_.init(n_part, pbc_.getSize(), 2.0 * max_radius + 0.01);
+    cll_.init(n_part, pbc_.getSize(), min_cell_size);
     for(size_t i = 0; i < n_part; ++i){
         particles_[i].vel -= sys_vel;
         base_kinetic_energy_ += 0.5 * particles_[i].vel.length2();
