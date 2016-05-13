@@ -56,7 +56,7 @@ inline size_t get_file_size(FILE* fp){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
-    const double output_delta = 0.1;
+    const double output_delta = 1.0;
     double output_start_time = 0.01;
 
     const auto& directory = argv[3];
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]){
         }
 
         char buff[64];
-        sprintf(buff, "%s/pid%u.pf%.3f.step%06u.xml", directory, getpid(), pf, ++nFiles);
+        sprintf(buff, "%s/pid%u.pf%.3f.step%06u.xml", directory, getpid(), pf, nFiles);
         xml_save_config(buff, config);
 
         fprintf(pressure_fp, "%e\t%e\n", sim->time(), sim->average_pressure());
@@ -160,6 +160,8 @@ int main(int argc, char *argv[]){
         FILE* fp = fopen(buff, "wb");
         fwrite(ar.data(), 1, ar.size(), fp);
         fclose(fp);
+
+        ++nFiles;
 
         return true;
     });

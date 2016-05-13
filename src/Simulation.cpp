@@ -611,7 +611,7 @@ Simulation::Simulation(const Configuration& config):
     config_(config),
     pbc_(config_.pbc_), particles_(config_.particles_), shapes_(config_.shapes_)
 {
-    mtGen_.seed(0);//std::time(NULL));
+    mtGen_.seed(std::time(NULL));
 
     auto n_part = particles_.size();
 
@@ -753,15 +753,41 @@ void Simulation::stop(void){
     is_running_ = false;
 }
 
-//TODO: Reset velocities
 void Simulation::restart(void){
+    reset_statistics();
     event_mgr_.clear();
 
+    //The adress of nnl_ will be different if we deserialized earlier
+    //TODO: We need a more reliable way to reseed, and if possible, it should
+    //always be the same if rerun with the same parameters. Either that, or
+    //it should be the user's responsiblity to reseed.
+    mtGen_.seed(std::time(NULL) + reinterpret_cast<unsigned long>(nnl_));
+
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+    clam::Vec3d sys_vel;
     for(size_t pid = 0; pid < particles_.size(); ++pid){
         nnl_[pid].clear();
         update_particle(particles_[pid], time_, pbc_);
         boxes_[pid] = particles_[pid].xform;
         cll_.update(pid, boxes_[pid].pos_);
+
+        double x1, x2, r;
+        do{
+            x1 = dist(mtGen_);
+            x2 = dist(mtGen_);
+            r = x1 * x1 + x2 * x2;
+        }while(r >= 1.0);
+        double s = 2.0 * sqrt(1.0 - r);
+
+        clam::Vec3d vec(x1 * s, x2 * s, 1.0 - 2.0 * r);
+        sys_vel += vec;
+        particles_[pid].vel = vec;
+    }
+    sys_vel = sys_vel * (1.0 / particles_.size());
+    base_kinetic_energy_ = 0.0;
+    for(size_t pid = 0; pid < particles_.size(); ++pid){
+        particles_[pid].vel -= sys_vel;
+        base_kinetic_energy_ += 0.5 * particles_[pid].vel.length2();
     }
 
     foreach_pair(cll_, [this](int i, int j) -> bool {
@@ -797,8 +823,6 @@ void Simulation::restart(void){
         event_mgr_.push(i, event);
         event_mgr_.update(i);
     }
-
-    reset_statistics();
 }
 
 void Simulation::reset_statistics(void){
