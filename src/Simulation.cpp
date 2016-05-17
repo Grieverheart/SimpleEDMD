@@ -787,6 +787,7 @@ void Simulation::restart(void){
     base_kinetic_energy_ = 0.0;
     for(size_t pid = 0; pid < particles_.size(); ++pid){
         particles_[pid].vel -= sys_vel;
+        particles_[pid].ang_vel = 0.0;
         base_kinetic_energy_ += 0.5 * particles_[pid].vel.length2();
     }
 
