@@ -56,7 +56,7 @@ inline size_t get_file_size(FILE* fp){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
-    const double output_delta = 1.0;
+    const double output_delta = 0.1;
     double output_start_time = 0.01;
 
     const auto& directory = argv[3];
@@ -109,22 +109,8 @@ int main(int argc, char *argv[]){
     }
 
     output.setCallback([sim, pf, pressure_fp, directory](double time) -> bool {
-        printf("%f\n", time);
         static int nFiles = 0;
-        Configuration config = sim->configuration();
-
-        for(auto& particle: config.particles_){
-            update_particle(particle, time, config.pbc_);
-        }
-
-        char buff[64];
-        sprintf(buff, "%s/pid%u.pf%.3f.step%06u.xml", directory, getpid(), pf, nFiles);
-        xml_save_config(buff, config);
-
-        fprintf(pressure_fp, "%e\t%e\n", sim->time(), sim->average_pressure());
-        fflush(pressure_fp);
-
-        sim->reset_statistics();
+        printf("%f\n", time);
 
         //Check for overlaps
         if(sim->check_overlaps()){
@@ -134,6 +120,7 @@ int main(int argc, char *argv[]){
             sim->~Simulation();
             new (sim) Simulation();
 
+            char buff[64];
             sprintf(buff, "%s/archive.pf%.3f.pid%u.bin", directory, pf, getpid());
             printf("Resetting...\n");
             FILE* fp = fopen(buff, "rb");
@@ -153,6 +140,21 @@ int main(int argc, char *argv[]){
 
             return false;
         }
+
+        Configuration config = sim->configuration();
+
+        for(auto& particle: config.particles_){
+            update_particle(particle, time, config.pbc_);
+        }
+
+        char buff[64];
+        sprintf(buff, "%s/pid%u.pf%.3f.step%06u.xml", directory, getpid(), pf, nFiles);
+        xml_save_config(buff, config);
+
+        fprintf(pressure_fp, "%e\t%e\n", sim->time(), sim->average_pressure());
+        fflush(pressure_fp);
+
+        sim->reset_statistics();
 
         Archive ar;
         serialize(ar, *sim);

@@ -211,8 +211,8 @@ public:
 
             double prev_distance = 0.0;
             int iters = 0;
-            while(true){
-                ++iters;
+            //NOTE: Just a high number for safety.
+            while(iters++ < 100000){
                 clam::Vec3d shortest_dist = overlap::gjk_distance(partA.xform, a, partB.xform, b);
                 double distance = shortest_dist.length();
 
@@ -226,12 +226,9 @@ public:
                         partB.time = time;
                         partA.time = time;
                         distance = overlap::gjk_distance(partA.xform, a, partB.xform, b).length();
-                        //NOTE: This should alsmost never happen.
-                        if(iter++ > 10000){
-                            printf("%d, %e, %e, %e\n", iters, prev_distance, distance, time);
-                            printf("%d, %d\n", pa_idx_, pb_idx_);
-                            return ParticleEvent::None();
-                        }
+                        //NOTE: This should alsmost never happen. In case it does, most likely we
+                        //will get an overlap, so the simulation should be restarted.
+                        if(iter++ > 10000) return ParticleEvent::None();
                     }
 
                     return ParticleEvent::Collision(sim_.time_ + time, pa_idx_, pb_idx_, sim_.n_collisions_[pb_idx_]);
@@ -790,6 +787,8 @@ void Simulation::restart(void){
         particles_[pid].ang_vel = 0.0;
         base_kinetic_energy_ += 0.5 * particles_[pid].vel.length2();
     }
+
+    kinetic_delta_ = 0.0;
 
     foreach_pair(cll_, [this](int i, int j) -> bool {
         auto shape_id_i = particles_[i].shape_id;
