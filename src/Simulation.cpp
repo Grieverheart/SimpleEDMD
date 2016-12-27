@@ -244,6 +244,8 @@ public:
 
 
                 /* Conservative advancement, tighter bound using support functions. */
+                //TODO: It would improve performance if there was a support function that returned
+                //the dot product instead of the point. That way we can avoid recomputing it.
                 double max_vel = clam::dot(shortest_dist_n, partB.vel);
                 {
                     double abs_omega_A = partA.ang_vel.length();
@@ -251,14 +253,16 @@ public:
                         auto inv_rot_A = partA.xform.rot_.inv();
                         clam::Vec3d c1  = inv_rot_A.rotate(clam::cross(partA.ang_vel, shortest_dist_n));
                         clam::Vec3d c1p = clam::cross(inv_rot_A.rotate(partA.ang_vel), c1) / abs_omega_A;
-                        max_vel += clam::dot(c1, partA.xform.size_ * a.support(c1)) + clam::dot(c1p, partA.xform.size_ * a.support(c1p));
+                        max_vel += partA.xform.size_ * (std::max(clam::dot(c1, a.support(c1)), clam::dot(-c1, a.support(-c1))) +
+                                                        std::max(clam::dot(c1p, a.support(c1p)), clam::dot(-c1p, a.support(-c1p))));
                     }
                     double abs_omega_B = partB.ang_vel.length();
                     if(abs_omega_B > 0.0){
                         auto inv_rot_B = partB.xform.rot_.inv();
                         clam::Vec3d c2  = inv_rot_B.rotate(clam::cross(partB.ang_vel, shortest_dist_n));
                         clam::Vec3d c2p = clam::cross(inv_rot_B.rotate(partB.ang_vel), c2) / abs_omega_B;
-                        max_vel += clam::dot(c2, partB.xform.size_ * b.support(c2)) + clam::dot(c2p, partB.xform.size_ * b.support(c2p));
+                        max_vel += partB.xform.size_ * (std::max(clam::dot(c2, b.support(c2)), clam::dot(-c2, b.support(-c2))) +
+                                                        std::max(clam::dot(c2p, b.support(c2p)), clam::dot(-c2p, b.support(-c2p))));
                     }
                 }
 

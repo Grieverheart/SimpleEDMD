@@ -6,5 +6,6 @@
 #include "box.h"
 #include "cone.h"
 #include "cylinder.h"
+#include "leaf_cylinder.h"
 
 #endif

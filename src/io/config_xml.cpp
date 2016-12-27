@@ -66,6 +66,15 @@ public:
         ret += "</shape>\n";
         return ret;
     }
+
+    std::string operator()(const shape::LeafCylinder& leaf)const{
+        std::string ret("<shape type=\"leaf cylinder\">\n");
+        ret += "<width>" + std::to_string(leaf.width()) + "</width>\n";
+        ret += "<length>" + std::to_string(leaf.length()) + "</length>\n";
+        ret += "<height>" + std::to_string(leaf.height()) + "</height>\n";
+        ret += "</shape>\n";
+        return ret;
+    }
 };
 
 void print_shape(FILE* fp, const shape::Variant& shape){
@@ -230,6 +239,13 @@ bool xml_load_config(const char* filename, Configuration& config){
                 shape->FirstChildElement("base_radius")->QueryDoubleText(&base_radius);
                 shape->FirstChildElement("height")->QueryDoubleText(&height);
                 config.shapes_.push_back(new shape::Variant(shape::Cylinder(base_radius, height)));
+            }
+            else if(shape->Attribute("type", "leaf cylinder")){
+                double width, length, height;
+                shape->FirstChildElement("width")->QueryDoubleText(&width);
+                shape->FirstChildElement("length")->QueryDoubleText(&length);
+                shape->FirstChildElement("height")->QueryDoubleText(&height);
+                config.shapes_.push_back(new shape::Variant(shape::LeafCylinder(width, length, height)));
             }
             else{
                 printf("Unknown shape type: %s.\n", shape->Attribute("type"));

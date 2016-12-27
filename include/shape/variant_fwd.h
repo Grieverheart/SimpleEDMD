@@ -16,8 +16,9 @@ namespace shape{
     class Box;
     class Cone;
     class Cylinder;
+    class LeafCylinder;
 
-    using Variant = boost::variant<Polyhedron, Sphere, Box, Cone, Cylinder>;
+    using Variant = boost::variant<Polyhedron, Sphere, Box, Cone, Cylinder, LeafCylinder>;
 }
 
 #endif

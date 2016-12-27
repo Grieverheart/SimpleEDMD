@@ -56,7 +56,7 @@ inline size_t get_file_size(FILE* fp){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
-    const double output_delta = 0.1;
+    const double output_delta = 1.0;
     double output_start_time = 0.01;
 
     const auto& directory = argv[3];
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]){
         return true;
     });
 
-    sim->run(1000.0, output);
+    sim->run(100000.0, output);
 
     fclose(pressure_fp);
 
