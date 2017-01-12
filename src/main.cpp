@@ -56,7 +56,7 @@ inline size_t get_file_size(FILE* fp){
 int main(int argc, char *argv[]){
 
     Simulation* sim;
-    const double output_delta = 1.0;
+    const double output_delta = 10.0;
     double output_start_time = 0.01;
 
     const auto& directory = argv[3];

@@ -11,8 +11,8 @@ namespace{
 
         template<typename T>
         void operator()(const T& shape)const{
-            int shape_type = shape::index<T>::value;
-            ar_.write(&shape_type, sizeof(shape_type));
+            int shape_idx = shape::index<T>::value;
+            ar_.write(&shape_idx, sizeof(shape_idx));
             serialize(ar_, shape);
         }
 
@@ -26,10 +26,16 @@ void serialize(Archive& ar, const shape::Variant& shape){
 }
 
 void deserialize(Archive& ar, shape::Variant** shape_ptr){
-    int shape_type;
-    deserialize(ar, &shape_type);
+    int shape_idx;
+    deserialize(ar, &shape_idx);
     //TODO: Is there a better way to do this?
-    switch(shape_type){
+    //NOTE: We can extract a type from the index; shape::variant_index_type<index>::type.
+    //Then,
+    //using shape_type = shape::variant_index_type<shape_idx>::type;
+    //shape_type shape;
+    //deserialize(ar, &shape);
+    //*shape_ptr = new shape::Variant(shape);
+    switch(shape_idx){
         case shape::index<shape::Polyhedron>::value:{
             shape::Polyhedron poly;
             deserialize(ar, &poly);
@@ -54,6 +60,11 @@ void deserialize(Archive& ar, shape::Variant** shape_ptr){
             shape::Cylinder cyl;
             deserialize(ar, &cyl);
             *shape_ptr = new shape::Variant(cyl);
+        } break;
+        case shape::index<shape::LeafCylinder>::value:{
+            shape::LeafCylinder leaf;
+            deserialize(ar, &leaf);
+            *shape_ptr = new shape::Variant(leaf);
         } break;
         //TODO: Implement panic handling.
         default: break;

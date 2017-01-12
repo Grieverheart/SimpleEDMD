@@ -26,11 +26,20 @@ namespace shape{
         struct type_index{
             static constexpr int value = type_index_helper<0, T, ArgsT...>::value;
         };
+
+        template<typename T, class C>
+        struct variant_type_index{};
+
+        template<typename T, template <typename...> class C, typename... ArgsT>
+        struct variant_type_index<T, C<ArgsT...>>{
+            static constexpr int value = type_index_helper<0, T, ArgsT...>::value;
+        };
+
     }
 
     template<typename T>
     struct index{
-        static constexpr int value = detail::type_index<T, Polyhedron, Sphere, Box, Cone, Cylinder>::value;
+        static constexpr int value = detail::variant_type_index<T, Variant>::value;
     };
 }
 
